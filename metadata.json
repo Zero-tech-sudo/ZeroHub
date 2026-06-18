@@ -1,5 +1,5 @@
 {
-  "name": "Zero Script Hub",
+  "name": "zerohub",
   "description": "Mobile-optimized Roblox script executor generator for 99 Nights in the Forest, featuring instant script customization, interactive GUI simulation, and step-by-step injection tutorials.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

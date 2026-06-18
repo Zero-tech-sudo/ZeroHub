@@ -476,7 +476,7 @@ export default function App() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="p-1 px-2.5 bg-cyan-500/10 text-cyan-400 border border-cyan-400/20 rounded font-mono text-[9px] uppercase tracking-widest font-bold">
-                Zero Script Vault
+                ZeroHub.com Vault
               </span>
               <span className="flex items-center gap-1 text-[9px] text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded font-bold font-mono">
                 <Sparkles className="w-3 h-3 text-cyan-400" /> INSTANT LOADSTRINGS
@@ -484,7 +484,7 @@ export default function App() {
             </div>
             <h1 className="text-xl md:text-2xl font-black tracking-tight flex items-center gap-2 font-mono">
               <Zap className="w-6 h-6 text-cyan-400 fill-cyan-400/20" />
-              ZERO <span className="text-cyan-400 font-normal font-sans">// Mobile Directory</span>
+              ZEROHUB.COM <span className="text-cyan-400 font-normal font-sans">// Mobile Directory</span>
             </h1>
             <p className="text-xs text-white/50">
               Get modular external scripts, fine-tune physical configs, and copy high-performance executor loadstrings.
@@ -902,7 +902,7 @@ export default function App() {
                   <Zap className="w-4 h-4" />
                 </div>
                 <div className="space-y-0.5">
-                  <h4 className="font-bold text-white tracking-wide">Zero Keys Verification</h4>
+                  <h4 className="font-bold text-white tracking-wide">ZeroHub.com Keyless Verification</h4>
                   <p className="text-[10px] leading-relaxed text-white/40">Instantly execute scripts. Bypass the obnoxious redirect link servers completely.</p>
                 </div>
               </div>
@@ -956,7 +956,7 @@ export default function App() {
           <div className="max-w-3xl mx-auto space-y-6">
             <div className="bg-zinc-950/40 p-5 rounded-3xl border border-white/5 space-y-2">
               <h2 className="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
-                <History className="w-5 h-5 text-cyan-400" /> Zero Repository Change logs
+                <History className="w-5 h-5 text-cyan-400" /> ZeroHub.com Repository Change logs
               </h2>
               <p className="text-xs text-white/40">
                 Track previous updates, anti-detection changes, and gameplay improvements deployed live.
@@ -1076,7 +1076,7 @@ export default function App() {
 
         {/* Dynamic footer */}
         <footer className="text-center text-[10px] text-white/30 pt-6 border-t border-white/5 flex justify-between items-center font-mono">
-          <span>Zero Database Hub — Auto-Patched Cloud Syncing</span>
+          <span>ZeroHub.com Database Hub — Auto-Patched Cloud Syncing</span>
           <span>Designed with absolute performance & safety for mobile devices.</span>
         </footer>
 
