@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable global primitive helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation Blueprint for custom script
+    function isValidCustomScript(data) {
+      return data.keys().hasAll(['id', 'name', 'rawUrl', 'userId'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 64
+        && data.rawUrl is string && data.rawUrl.size() <= 2048
+        && data.userId == request.auth.uid;
+    }
+
+    // Validation Blueprint for user config
+    function isValidUserConfig(data) {
+      return data.keys().hasAll(['userId', 'gameId', 'walkSpeed', 'jumpPower'])
+        && data.userId == request.auth.uid
+        && data.gameId is string && data.gameId.size() <= 128
+        && data.walkSpeed is int && data.walkSpeed >= 16 && data.walkSpeed <= 250
+        && data.jumpPower is int && data.jumpPower >= 50 && data.jumpPower <= 300;
+    }
+
+    // Collection: Custom Scripts
+    match /custom_scripts/{scriptId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(scriptId) && isValidCustomScript(request.resource.data);
+      allow update: if isSignedIn() && isValidId(scriptId) && resource.data.userId == request.auth.uid && isValidCustomScript(request.resource.data);
+      allow delete: if isSignedIn() && isValidId(scriptId) && resource.data.userId == request.auth.uid;
+    }
+
+    // Collection: User Configs
+    match /user_configs/{configId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(configId) && isValidUserConfig(request.resource.data);
+      allow update: if isSignedIn() && isValidId(configId) && resource.data.userId == request.auth.uid && isValidUserConfig(request.resource.data);
+      allow delete: if isSignedIn() && isValidId(configId) && resource.data.userId == request.auth.uid;
+    }
+  }
+}

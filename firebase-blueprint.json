@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "customScript": {
+      "title": "Custom Script",
+      "description": "A custom user-added Roblox script loader",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "rawUrl": {
+          "type": "string"
+        },
+        "emojiText": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "features": {
+          "type": "array"
+        },
+        "status": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "rawUrl",
+        "userId"
+      ]
+    },
+    "userConfig": {
+      "title": "User Config",
+      "description": "A customized game configuration for walkspeed, jump power, and other active cheats",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "gameId": {
+          "type": "string"
+        },
+        "walkSpeed": {
+          "type": "number"
+        },
+        "jumpPower": {
+          "type": "number"
+        },
+        "extraToggles": {
+          "type": "object"
+        },
+        "extraSliders": {
+          "type": "object"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "gameId",
+        "walkSpeed",
+        "jumpPower"
+      ]
+    }
+  },
+  "firestore": {
+    "/custom_scripts/{scriptId}": {
+      "schema": "customScript",
+      "description": "Collection of user added custom game scripts"
+    },
+    "/user_configs/{configId}": {
+      "schema": "userConfig",
+      "description": "Collection of customized gameplay slider settings"
+    }
+  }
+}
