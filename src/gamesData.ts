@@ -15,6 +15,9 @@ export interface RobloxGame {
     extraToggles: { label: string; key: string; val: boolean }[];
     extraSliders: { label: string; key: string; min: number; max: number; val: number; unit: string }[];
   };
+  published?: boolean;
+  userId?: string;
+  updatedAt?: string;
 }
 
 export interface ChangeLogEntry {
@@ -30,13 +33,13 @@ export interface ChangeLogEntry {
 export const INITIAL_GAMES: RobloxGame[] = [
   {
     id: 'nights_forest',
-    name: '99 Nights in the Forest',
+    name: '99 Nights in the Forest [Patched]',
     category: 'survival',
-    rawUrl: 'https://files.vapevoidware.xyz/VapeVoidware/VW-Add/main/nightsintheforest.lua',
+    rawUrl: 'https://raw.githubusercontent.com/ZeroHub-Roblox/scripts/main/nightsintheforest.lua',
     emojiText: '🌳',
     description: 'Perfect survival assistance. Auto warm fireplaces, animal warning ESP, item magnetic teleports and fully integrated anti-freeze bypass.',
     status: 'Undetected',
-    releaseDate: '2026-06-10',
+    releaseDate: '2026-07-03',
     features: ['Walk speed changer', 'Automatic Chest Magnet', 'Campfire Auto Wood Feeder', 'Lost Children Auto Warp'],
     settings: {
       walkSpeed: 75,
@@ -56,21 +59,48 @@ export const INITIAL_GAMES: RobloxGame[] = [
 
 export const INITIAL_CHANGELOGS: ChangeLogEntry[] = [
   {
-    id: 'cl1',
-    date: '2026-06-11',
-    version: 'v4.1.2',
+    id: 'cl5',
+    date: '2026-07-03',
+    version: 'v4.2.0',
     gameName: '99 Nights in the Forest',
     type: 'added',
-    title: 'Added Auto Treasure Magnet',
-    description: 'Implanted a fast thread which pulls and auto-extracts scattered gold boxes across the forest map without manual clicks.'
+    title: 'Active Raw Loadstring Script & Release Update',
+    description: 'Transferred 99 Nights in the Forest from coming-soon status to fully operational. Replaced long, bulky scripts with lightweight, easy-to-copy loadstring executions.'
+  },
+  {
+    id: 'cl4',
+    date: '2026-07-02',
+    version: 'v4.1.9',
+    gameName: 'In-Game Preview',
+    type: 'fixed',
+    title: 'Interactive 2D Forest Simulator Preview & Owner Restriction',
+    description: 'Replaced static, low-fidelity preview placeholders with a real-time interactive 2D Bypass Simulator. Secured trigger elements strictly to authorized system owners.'
+  },
+  {
+    id: 'cl3',
+    date: '2026-06-27',
+    version: 'v4.1.5',
+    gameName: 'Suggestions Channel',
+    type: 'added',
+    title: 'Cloud Suggestions & Request Channel',
+    description: 'Launched a community board integrated directly with Cloud Firestore. Users can write script requests, vote on upcoming features, and share comments securely.'
   },
   {
     id: 'cl2',
-    date: '2026-06-10',
-    version: 'v1.6.0',
-    gameName: 'Global API',
-    type: 'security',
-    title: 'Anti-Tamper & Spoofer V2',
-    description: 'Reinforced the memory spoofer to shield players from client detection. Memory scanner hook blocks Roblox server-side manual kicks.'
+    date: '2026-06-27',
+    version: 'v4.1.4',
+    gameName: 'UI Overhaul',
+    type: 'added',
+    title: 'Clean Clutter-Free Layout & Toggle Sliders',
+    description: 'Hidden the customization sliders and script configurator panel by default to clean up the interface. A smart customization toggle is added to reveal sliders when tweaking walkspeed is needed.'
+  },
+  {
+    id: 'cl1',
+    date: '2026-06-27',
+    version: 'v4.1.3',
+    gameName: 'Global App',
+    type: 'added',
+    title: 'Slide-Out Navigation & AI Agent Safeguard',
+    description: 'Designed a slide-out hamburger sidebar drawer holding Change Logs, Roblox guides, and suggestions. Added ZeroShield™ AI safeguard monitoring target memories.'
   }
 ];

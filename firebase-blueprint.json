@@ -35,6 +35,10 @@
         "createdAt": {
           "type": "string",
           "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
         }
       },
       "required": [
@@ -78,6 +82,120 @@
         "walkSpeed",
         "jumpPower"
       ]
+    },
+    "supportTicket": {
+      "title": "Support Ticket",
+      "description": "A support request or bug report submitted by a user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string"
+        },
+        "ownerResponse": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "category",
+        "description",
+        "createdAt",
+        "status"
+      ]
+    },
+    "userSnippet": {
+      "title": "User Snippet",
+      "description": "A personal custom Roblox script snippet drafted by the user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "title",
+        "code"
+      ]
+    },
+    "changelog": {
+      "title": "Changelog Entry",
+      "description": "An update log or change log entry specifying a database/script update",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "gameName": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["added", "fixed", "security", "database"]
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "date",
+        "version",
+        "gameName",
+        "type",
+        "title",
+        "description"
+      ]
     }
   },
   "firestore": {
@@ -88,6 +206,18 @@
     "/user_configs/{configId}": {
       "schema": "userConfig",
       "description": "Collection of customized gameplay slider settings"
+    },
+    "/support_tickets/{ticketId}": {
+      "schema": "supportTicket",
+      "description": "Collection of bug reports and support requests"
+    },
+    "/user_snippets/{snippetId}": {
+      "schema": "userSnippet",
+      "description": "Collection of personal script snippets drafted and saved by the user"
+    },
+    "/changelogs/{changelogId}": {
+      "schema": "changelog",
+      "description": "Collection of change log logs detailing system updates and feature rollouts"
     }
   }
 }

@@ -12,6 +12,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isDevOrOwner() {
+      return isSignedIn() 
+        && (request.auth.token.email == "mohamedayanle0@gmail.com" || request.auth.token.email == "owner@zerohub.net");
+    }
+
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -22,7 +27,7 @@ service cloud.firestore {
         && data.id is string && data.id.size() <= 128
         && data.name is string && data.name.size() <= 64
         && data.rawUrl is string && data.rawUrl.size() <= 2048
-        && data.userId == request.auth.uid;
+        && (data.get('published', false) is bool);
     }
 
     // Validation Blueprint for user config
@@ -34,12 +39,51 @@ service cloud.firestore {
         && data.jumpPower is int && data.jumpPower >= 50 && data.jumpPower <= 300;
     }
 
+    // Validation Blueprint for support ticket
+    function isValidSupportTicket(data) {
+      return data.keys().hasAll(['id', 'email', 'category', 'description', 'createdAt', 'status'])
+        && data.id is string && data.id.size() <= 128
+        && data.email is string && data.email.size() <= 256
+        && data.category is string && data.category.size() <= 64
+        && data.description is string && data.description.size() <= 5000
+        && data.status is string && data.status.size() <= 32;
+    }
+
+    // Validation Blueprint for user snippet
+    function isValidUserSnippet(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'code'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.title is string && data.title.size() <= 128
+        && data.code is string && data.code.size() <= 65536;
+    }
+
+    // Validation Blueprint for user favorites
+    function isValidUserFavorites(data) {
+      return data.get('favorites', []) is list;
+    }
+
+    // Validation Blueprint for changelog entry
+    function isValidChangelog(data) {
+      return data.keys().hasAll(['id', 'date', 'version', 'gameName', 'type', 'title', 'description'])
+        && data.id is string && data.id.size() <= 128
+        && data.date is string && data.date.size() <= 32
+        && data.version is string && data.version.size() <= 32
+        && data.gameName is string && data.gameName.size() <= 128
+        && data.type is string && data.type.size() <= 32
+        && data.title is string && data.title.size() <= 256
+        && data.description is string && data.description.size() <= 10000;
+    }
+
     // Collection: Custom Scripts
     match /custom_scripts/{scriptId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(scriptId) && isValidCustomScript(request.resource.data);
-      allow update: if isSignedIn() && isValidId(scriptId) && resource.data.userId == request.auth.uid && isValidCustomScript(request.resource.data);
-      allow delete: if isSignedIn() && isValidId(scriptId) && resource.data.userId == request.auth.uid;
+      allow read: if resource == null 
+                  || resource.data.get('published', true) == true 
+                  || isDevOrOwner() 
+                  || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isDevOrOwner() && isValidId(scriptId) && isValidCustomScript(request.resource.data);
+      allow update: if isDevOrOwner() && isValidId(scriptId) && isValidCustomScript(request.resource.data);
+      allow delete: if isDevOrOwner() && isValidId(scriptId);
     }
 
     // Collection: User Configs
@@ -48,6 +92,41 @@ service cloud.firestore {
       allow create: if isSignedIn() && isValidId(configId) && isValidUserConfig(request.resource.data);
       allow update: if isSignedIn() && isValidId(configId) && resource.data.userId == request.auth.uid && isValidUserConfig(request.resource.data);
       allow delete: if isSignedIn() && isValidId(configId) && resource.data.userId == request.auth.uid;
+    }
+
+    // Collection: Suggestions
+    match /suggestions/{suggestionId} {
+      allow read, create: if true;
+    }
+
+    // Collection: Support Tickets
+    match /support_tickets/{ticketId} {
+      allow read: if isDevOrOwner() 
+                  || (isSignedIn() && resource.data.email == request.auth.token.email);
+      allow create: if isValidId(ticketId) && isValidSupportTicket(request.resource.data);
+      allow update: if isDevOrOwner() && isValidId(ticketId);
+      allow delete: if isDevOrOwner() && isValidId(ticketId);
+    }
+
+    // Collection: User Snippets
+    match /user_snippets/{snippetId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(snippetId) && isValidUserSnippet(request.resource.data);
+      allow update: if isSignedIn() && isValidId(snippetId) && resource.data.userId == request.auth.uid && isValidUserSnippet(request.resource.data);
+      allow delete: if isSignedIn() && isValidId(snippetId) && resource.data.userId == request.auth.uid;
+    }
+
+    // Collection: User Favorites
+    match /user_favorites/{userId} {
+      allow read: if isSignedIn() && userId == request.auth.uid;
+      allow create, update: if isSignedIn() && userId == request.auth.uid && isValidUserFavorites(request.resource.data);
+      allow delete: if isSignedIn() && userId == request.auth.uid;
+    }
+
+    // Collection: Changelogs
+    match /changelogs/{changelogId} {
+      allow read: if true;
+      allow create, update, delete: if isDevOrOwner() && isValidId(changelogId) && isValidChangelog(request.resource.data);
     }
   }
 }

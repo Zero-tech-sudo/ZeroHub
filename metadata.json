@@ -1,6 +1,6 @@
 {
-  "name": "zerohub",
-  "description": "Mobile-optimized Roblox script executor generator for 99 Nights in the Forest, featuring instant script customization, interactive GUI simulation, and step-by-step injection tutorials.",
+  "name": "ZeroHub",
+  "description": "ZeroHub Studio and Script Customizer — featuring dynamic loadstring configuration, a personal Luau Script Sandbox and Drafting Workspace with full syntax linting, interactive level-7 simulator, and mobile integration guidelines.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
