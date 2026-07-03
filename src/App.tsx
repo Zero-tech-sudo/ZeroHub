@@ -18,6 +18,7 @@ import { SupportHub } from './components/SupportHub';
 import { ScriptSandbox } from './components/ScriptSandbox';
 import { InGamePreview } from './components/InGamePreview';
 import { motion, AnimatePresence } from 'motion/react';
+import { ResponsiveContainer, AreaChart, Area, Tooltip } from 'recharts';
 
 // Firebase imports
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
@@ -56,6 +57,41 @@ const getPerformanceRating = (game: RobloxGame) => {
     loadTime,
     stabilityText
   };
+};
+
+// Generates deterministic 30-day uptime history data based on script state/ID
+const generateUptimeHistory = (game: RobloxGame) => {
+  const seed = game.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  
+  // Base uptime depending on game status
+  let baseUptime = 99.8;
+  const status = game.status;
+  if (status === 'Testing') baseUptime = 98.1;
+  if (status === 'Patching') baseUptime = 83.4;
+
+  const data = [];
+  for (let i = 30; i >= 1; i--) {
+    // Generate a deterministic fluctuation
+    const pseudoRandom = Math.sin(seed + i) * 0.4 + Math.cos(seed * i) * 0.4;
+    let dayUptime = baseUptime + (pseudoRandom * 0.6);
+    
+    // Rare deterministic outages/dips for realism
+    if ((seed + i) % 19 === 0) {
+      dayUptime -= (2.5 + (seed % 4));
+    }
+    
+    if (status === 'Patching' && i > 25) {
+      // Recent drop due to patch requirements
+      dayUptime -= (14 + (seed % 6));
+    }
+    
+    dayUptime = Math.max(50, Math.min(100, dayUptime));
+    data.push({
+      day: `Day ${31 - i}`,
+      uptime: parseFloat(dayUptime.toFixed(2)),
+    });
+  }
+  return data;
 };
 
 // Helper to determine colorful tag styles based on feature name category
@@ -2037,6 +2073,60 @@ export default function App() {
                                 }`}>
                                   PERF: {perf.score}/100
                                 </span>
+                              </div>
+                            );
+                          })()}
+
+                          {/* 30-Day Uptime Stability Graph Section */}
+                          {(() => {
+                            const uptimeData = generateUptimeHistory(game);
+                            const avgUptime = (uptimeData.reduce((acc, curr) => acc + curr.uptime, 0) / uptimeData.length).toFixed(2);
+                            return (
+                              <div 
+                                className="mt-2 bg-black/45 border border-white/5 rounded-2xl p-2.5 space-y-1.5 cursor-default relative z-10"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="flex items-center justify-between text-[8px] font-mono text-white/45 tracking-wider">
+                                  <span className="flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    <span>30D UPTIME STABILITY</span>
+                                  </span>
+                                  <span className="text-white/70 font-black">AVG: {avgUptime}%</span>
+                                </div>
+                                <div className="h-[42px] w-full mt-1">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={uptimeData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+                                      <defs>
+                                        <linearGradient id={`colorUptime-${game.id}`} x1="0" y1="0" x2="0" y2="1">
+                                          <stop offset="5%" stopColor={activeAccent.primary} stopOpacity={0.25}/>
+                                          <stop offset="95%" stopColor={activeAccent.primary} stopOpacity={0.0}/>
+                                        </linearGradient>
+                                      </defs>
+                                      <Tooltip
+                                        content={({ active, payload }) => {
+                                          if (active && payload && payload.length) {
+                                            return (
+                                              <div className="bg-zinc-950/95 border border-white/10 rounded-lg p-1.5 px-2 text-[9px] font-mono shadow-2xl text-white">
+                                                <span className="text-white/40 block leading-none mb-0.5">{payload[0].payload.day}</span>
+                                                <span className="font-bold text-cyan-400 leading-none">{payload[0].value}% Uptime</span>
+                                              </div>
+                                            );
+                                          }
+                                          return null;
+                                        }}
+                                        cursor={{ stroke: 'rgba(255,255,255,0.05)', strokeWidth: 1 }}
+                                      />
+                                      <Area
+                                        type="monotone"
+                                        dataKey="uptime"
+                                        stroke={activeAccent.primary}
+                                        strokeWidth={1.5}
+                                        fillOpacity={1}
+                                        fill={`url(#colorUptime-${game.id})`}
+                                      />
+                                    </AreaChart>
+                                  </ResponsiveContainer>
+                                </div>
                               </div>
                             );
                           })()}

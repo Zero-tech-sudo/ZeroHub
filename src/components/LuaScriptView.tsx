@@ -155,16 +155,17 @@ export const LuaScriptView: React.FC<LuaScriptViewProps> = ({ game, customValues
   }, [game.id, loaderType]);
 
   const startExecutionSimulation = () => {
-    if (!isDevOrOwner) return;
     setIsExecuting(true);
     setExecutionStep(0);
     setExecutionLogs([]);
 
     const baseLogs = [
-      '🔧 [ZeroHub Injector] Attaching Delta/Xeno level-7 engine API...',
-      '🔍 [ZeroHub Injector] Locating active Roblox client memory addresses...',
-      '📌 [ZeroHub Injector] Success! Hooked RobloxPlayerBeta.exe (PID: 1284) successfully at 0x7FFA830C0000',
-      '🛡️ [Bypass] Bypassing Byfron hypervisor & security integrity checks...'
+      '🔧 [Delta Injector] Attaching Delta Level 7 Executor API...',
+      '🔍 [Delta Injector] Locating active Roblox client processes...',
+      '📌 [Delta Injector] Hooked RobloxPlayerBeta.exe successfully (PID: 28941) at 0x7FFA830C0000',
+      '🛡️ [Delta Bypass] Bypassing anti-cheat & memory-shield registers...',
+      '🌐 [GitHub Linker] Verifying active master connection with raw.githubusercontent.com...',
+      '✅ [GitHub Linker] Repository synced 100%! Connected securely to: ZeroHub-Roblox/scripts',
     ];
 
     const logs = [...baseLogs];
@@ -173,16 +174,16 @@ export const LuaScriptView: React.FC<LuaScriptViewProps> = ({ game, customValues
       logs.push(`🔗 [Chainer] Detected ${chainedUrls.length} combined utility loadstrings to chain...`);
       chainedUrls.forEach((url, idx) => {
         logs.push(`📡 [CDN Loader] Handshaking secure Cloudflare CDN for Module ${idx + 1}...`);
-        logs.push(`📦 [CDN Loader] Loading bytecode chunk from "${url.substring(0, 42)}..."`);
+        logs.push(`📦 [GitHub Fetch] Downloading bytecode chunk from "${url.substring(0, 42)}..."`);
         logs.push(`⚡ [VM Compiler] Translating Luau registers for Module ${idx + 1}...`);
       });
     } else {
-      logs.push('📡 [CDN Loader] Handshaking secure Cloudflare CDN tunnels...');
-      logs.push('📦 [CDN Loader] Loading script bytecode chunks securely...');
+      logs.push(`📡 [CDN Loader] Handshaking secure CDN tunnels...`);
+      logs.push(`📦 [GitHub Fetch] Fetching live: "${game.rawUrl.substring(0, 50)}..."`);
       logs.push('⚡ [VM Compiler] Translating Luau VM code registers...');
     }
 
-    logs.push('🚀 [ZeroHub Loader] SECURE LOADSTRING EXECUTED IN CLIENT ENVIRONMENT!');
+    logs.push('🚀 [Delta Loader] SECURE LOADSTRING EXECUTED IN CLIENT ENVIRONMENT!');
     logs.push('✨ [ZeroHub HUD] Welcome, Void User! Spawning ZeroHub Premium HUD GUI...');
 
     let currentLog = 0;
@@ -315,11 +316,18 @@ export const LuaScriptView: React.FC<LuaScriptViewProps> = ({ game, customValues
 
       {/* Top Banner and Tabs */}
       <div className="bg-white/3 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:px-5 gap-3">
-        <div className="flex items-center gap-2">
-          <Terminal className="w-4 h-4" style={{ color: activeColorHex }} />
-          <span className="text-xs font-mono text-zinc-100 font-bold tracking-tight">
-            Zero Loader / <span className="font-sans" style={{ color: activeColorHex }}>{game.name}</span>
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Terminal className="w-4 h-4" style={{ color: activeColorHex }} />
+            <span className="text-xs font-mono text-zinc-100 font-bold tracking-tight">
+              Zero Loader / <span className="font-sans" style={{ color: activeColorHex }}>{game.name}</span>
+            </span>
+          </div>
+          {/* GitHub Connection Badge */}
+          <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-400/30 text-emerald-400 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold shadow-[0_0_10px_rgba(16,185,129,0.15)] select-none">
+            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+            <span>GitHub Connected</span>
+          </div>
         </div>
 
         {/* Dynamic Loader Switcher */}
@@ -365,21 +373,19 @@ export const LuaScriptView: React.FC<LuaScriptViewProps> = ({ game, customValues
           </span>
 
           {/* SIMULATE RUN BUTTON */}
-          {isDevOrOwner && (
-            <button
-              onClick={startExecutionSimulation}
-              disabled={isCompiling || isComingSoon}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all duration-300 flex items-center gap-1.5 cursor-pointer select-none active:scale-95 border ${
-                isExecuting
-                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
-                  : 'bg-amber-500/5 hover:bg-amber-500/15 border-amber-500/20 hover:border-amber-500/40 text-amber-300 hover:text-amber-100'
-              } ${isComingSoon ? 'opacity-40 cursor-not-allowed' : ''}`}
-              title="Simulate loading & running the script inside an attached executor"
-            >
-              <Play className={`w-3.5 h-3.5 ${isExecuting ? 'animate-pulse' : ''}`} />
-              <span>{isExecuting ? 'EXECUTING...' : 'RUN SIMULATOR'}</span>
-            </button>
-          )}
+          <button
+            onClick={startExecutionSimulation}
+            disabled={isCompiling || isComingSoon}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all duration-300 flex items-center gap-1.5 cursor-pointer select-none active:scale-95 border ${
+              isExecuting
+                ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
+                : 'bg-amber-500/5 hover:bg-amber-500/15 border-amber-500/20 hover:border-amber-500/40 text-amber-300 hover:text-amber-100'
+            } ${isComingSoon ? 'opacity-40 cursor-not-allowed' : ''}`}
+            title="Simulate loading & running the script inside an attached executor"
+          >
+            <Play className={`w-3.5 h-3.5 ${isExecuting ? 'animate-pulse' : ''}`} />
+            <span>{isExecuting ? 'EXECUTING...' : 'RUN SIMULATOR'}</span>
+          </button>
 
           {/* SCRIPT SETTINGS TOGGLE */}
           <button

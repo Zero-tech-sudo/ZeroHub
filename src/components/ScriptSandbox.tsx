@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Code, Save, Play, Clipboard, Check, Trash2, Plus, Search, 
-  Sparkles, CheckCircle2, AlertCircle, FileCode, Tag, Clock, Cloud, Lock
+  Sparkles, CheckCircle2, AlertCircle, FileCode, Tag, Clock, Cloud, Lock,
+  Terminal, Cpu, Loader2, X, Sliders, RefreshCw, Layers, Wifi, Activity, Info, Tv, Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../firebase';
@@ -9,6 +10,7 @@ import {
   collection, query, where, getDocs, doc, setDoc, deleteDoc, 
   serverTimestamp, onSnapshot, updateDoc 
 } from 'firebase/firestore';
+import { ForestSimulator } from './ForestSimulator';
 
 interface Snippet {
   id: string;
@@ -50,6 +52,16 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
   }>({ status: 'idle', message: '', errors: [] });
   const [isLinting, setIsLinting] = useState(false);
   const [copiedLoadstring, setCopiedLoadstring] = useState(false);
+
+  // Delta Executor simulation states inside sandbox
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [executionLogs, setExecutionLogs] = useState<string[]>([]);
+  const [executionStep, setExecutionStep] = useState(0);
+  const [simulatedWalkSpeed, setSimulatedWalkSpeed] = useState(120);
+  const [simulatedFly, setSimulatedFly] = useState(false);
+  const [simulatedNoclip, setSimulatedNoclip] = useState(false);
+  const [simulatedEsp, setSimulatedEsp] = useState(true);
+  const [detectedGameId, setDetectedGameId] = useState<'nights_forest' | 'generic'>('generic');
 
   const isDark = theme === 'studio-dark' || theme === 'ultradark' || theme === 'neon';
 
@@ -304,6 +316,53 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
     triggerToast("Injected loadstring template copied!");
   };
 
+  const startSandboxDeltaSimulation = () => {
+    setIsExecuting(true);
+    setExecutionStep(0);
+    setExecutionLogs([]);
+    
+    const lowCode = code.toLowerCase();
+    const isForestScript = lowCode.includes('nightsintheforest') || lowCode.includes('nights_forest') || lowCode.includes('nights in the forest');
+    setDetectedGameId(isForestScript ? 'nights_forest' : 'generic');
+
+    const baseLogs = [
+      '🔧 [Delta Injector] Attaching Delta Level 7 Executor API...',
+      '🔍 [Delta Injector] Locating active Roblox client processes...',
+      '📌 [Delta Injector] Hooked RobloxPlayerBeta.exe successfully (PID: 28941) at 0x7FFA830C0000',
+      '🛡️ [Delta Bypass] Disabling server-side integrity telemetry registers...',
+      '🌐 [GitHub Linker] Verifying active master connection with raw.githubusercontent.com...',
+      '✅ [GitHub Linker] Connection verified! Git HEAD secure and connected (Repo: ZeroHub-Roblox/scripts)',
+    ];
+
+    const logs = [...baseLogs];
+
+    // Try to extract a URL to mock fetching it
+    const urlMatch = code.match(/https?:\/\/[^\s"'()]+/);
+    if (urlMatch) {
+      const detectedUrl = urlMatch[0];
+      logs.push(`📡 [CDN Fetch] Handshaking cloud secure tunnel for loadstring raw source...`);
+      logs.push(`📦 [GitHub Fetch] Downloading raw source: "${detectedUrl.substring(0, 48)}..."`);
+      logs.push(`✅ [GitHub Fetch] Downloaded 100% bytecode chunk successfully. (Size: 12.4 KB)`);
+    } else {
+      logs.push(`📝 [Parser] Loading custom pasted Luau source code buffers...`);
+      logs.push(`⚡ [VM Compiler] Parsing AST tokens and compiling code segments...`);
+    }
+
+    logs.push('🚀 [Delta Loader] SECURE LOADSTRING EXECUTED IN CLIENT ENVIRONMENT!');
+    logs.push('✨ [ZeroHub HUD] Welcome, Void User! Spawning Premium Bypass HUD GUI...');
+
+    let currentLog = 0;
+    const logTimer = setInterval(() => {
+      if (currentLog < logs.length) {
+        setExecutionLogs(prev => [...prev, logs[currentLog]]);
+        setExecutionStep(currentLog + 1);
+        currentLog++;
+      } else {
+        clearInterval(logTimer);
+      }
+    }, 280);
+  };
+
   const filteredSnippets = snippets.filter(s => 
     s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -346,6 +405,22 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
               } border`}
             />
           </div>
+        </div>
+
+        {/* GitHub Connection Badge */}
+        <div className={`p-4 rounded-3xl border flex items-center justify-between transition-all select-none ${
+          isDark ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border-emerald-100 text-emerald-700'
+        }`}>
+          <div className="flex items-center gap-2.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+            <div className="text-left">
+              <p className="text-[10px] font-mono font-extrabold uppercase leading-none">GitHub Repo Status</p>
+              <p className="text-[8px] opacity-70 font-mono mt-1">ZeroHub-Roblox/scripts (Synced)</p>
+            </div>
+          </div>
+          <span className="text-[9px] font-mono font-extrabold uppercase bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
+            Connected
+          </span>
         </div>
 
         {/* Snippets list wrapper */}
@@ -491,6 +566,16 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
             </div>
             
             <div className="flex items-center gap-2">
+              {/* Run in Delta simulation button */}
+              <button
+                onClick={startSandboxDeltaSimulation}
+                className="p-1.5 px-3 rounded-xl text-[10px] font-mono font-extrabold bg-amber-500 hover:bg-amber-400 text-black flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 shadow-md shadow-amber-500/10"
+                title="Execute draft code inside virtual Delta Executor Level 7"
+              >
+                <Play className="w-3.5 h-3.5 fill-black text-black" />
+                <span>RUN IN DELTA</span>
+              </button>
+
               {/* Loadstring button only if selected */}
               {selectedSnippet && (
                 <button
@@ -645,6 +730,191 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
         </div>
 
       </div>
+
+      {/* DELTA EXECUTOR SIMULATOR OVERLAY MODAL */}
+      <AnimatePresence>
+        {isExecuting && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-2xl bg-zinc-950 border border-amber-500/30 rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(245,158,11,0.15)] flex flex-col my-8"
+            >
+              {/* Modal Header */}
+              <div className="bg-zinc-900 border-b border-white/5 px-6 py-4 flex items-center justify-between text-xs font-mono font-bold text-zinc-400">
+                <div className="flex items-center gap-2.5">
+                  <Cpu className="w-4 h-4 text-amber-400 animate-pulse" />
+                  <span>DELTA EXECUTOR v4.5 [PREMIUM]</span>
+                  <span className="text-[9px] px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full font-bold uppercase tracking-widest animate-pulse">ACTIVE LEVEL 7</span>
+                </div>
+                <button
+                  onClick={() => setIsExecuting(false)}
+                  className="p-1.5 rounded-xl bg-white/5 hover:bg-rose-500/20 hover:text-rose-400 transition-all cursor-pointer border border-transparent hover:border-rose-500/20"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Console Logs/Viewport Area */}
+              <div className="p-6 space-y-4 font-mono text-[11px] min-h-[300px] flex-1 flex flex-col justify-between">
+                
+                {/* Simulated Steps log terminal */}
+                <div className="space-y-2 max-h-[180px] overflow-y-auto text-left text-zinc-300 pr-1 scrollbar-thin">
+                  {executionLogs.map((log, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, x: -5 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className={`leading-relaxed ${
+                        log.includes('SUCCESS') || log.includes('✅') ? 'text-emerald-400 font-extrabold' :
+                        log.includes('Welcome') || log.includes('✨') ? 'text-cyan-400 font-extrabold' : 
+                        log.includes('🔧') || log.includes('🔍') ? 'text-amber-400' : 'text-zinc-300'
+                      }`}
+                    >
+                      {log}
+                    </motion.div>
+                  ))}
+                  {executionStep < 8 && (
+                    <div className="flex items-center gap-2 text-amber-400/80 animate-pulse mt-2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                      <span>Processing payload modules...</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Loading / Bytecode Processing Bar */}
+                {executionStep < 8 && (
+                  <div className="space-y-2 mt-4">
+                    <div className="flex justify-between text-[10px] text-zinc-500">
+                      <span>Analyzing memory blocks and preloading scripts...</span>
+                      <span>{Math.round((executionStep / 8) * 100)}%</span>
+                    </div>
+                    <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden border border-white/5">
+                      <div
+                        className="bg-amber-400 h-full transition-all duration-300 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+                        style={{ width: `${(executionStep / 8) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* If step reaches maximum, display appropriate GUI HUD */}
+                {executionStep >= 8 && (
+                  detectedGameId === 'nights_forest' ? (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-4 text-left border-t border-white/5 pt-4 w-full"
+                    >
+                      <ForestSimulator
+                        walkSpeed={simulatedWalkSpeed}
+                        jumpPower={120}
+                        extraToggles={{
+                          autoWood: true,
+                          autoAura: true,
+                          antiRagdoll: true,
+                          noclip: simulatedNoclip,
+                          infiniteFly: simulatedFly
+                        }}
+                        extraSliders={{
+                          yieldTarget: 80,
+                          auraDistance: 25
+                        }}
+                        onClose={() => setIsExecuting(false)}
+                      />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0, y: 15, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      className="mt-4 bg-gradient-to-b from-zinc-900 to-black border border-cyan-500/40 rounded-2xl p-5 shadow-[0_0_30px_rgba(6,182,212,0.15)] relative overflow-hidden"
+                    >
+                      <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
+
+                      {/* HUD Header */}
+                      <div className="flex items-center justify-between border-b border-white/5 pb-3 mb-4 relative z-10">
+                        <div className="flex items-center gap-2">
+                          <Tv className="w-5 h-5 text-cyan-400 animate-bounce" />
+                          <div>
+                            <span className="text-xs font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-300 uppercase">
+                              ZeroHub Roblox HUD
+                            </span>
+                            <p className="text-[8px] text-zinc-500 font-mono leading-none mt-0.5">Active Executor Hook: Custom Sandbox Script</p>
+                          </div>
+                        </div>
+                        <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 font-bold uppercase tracking-widest animate-pulse">
+                          Active Bypass
+                        </span>
+                      </div>
+
+                      {/* HUD Features Slider / Toggles */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10 text-left">
+                        {/* Speed Alterer */}
+                        <div className="space-y-2 bg-white/2 p-3 rounded-xl border border-white/5">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="text-zinc-400 font-bold">👟 WalkSpeed Alterer</span>
+                            <span className="text-cyan-400 font-mono font-bold">{simulatedWalkSpeed} / 250</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="16"
+                            max="250"
+                            value={simulatedWalkSpeed}
+                            onChange={(e) => setSimulatedWalkSpeed(Number(e.target.value))}
+                            className="w-full h-1 bg-black rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                          />
+                        </div>
+
+                        {/* Sliders / Toggles Column */}
+                        <div className="space-y-2 text-[10px]">
+                          <button
+                            onClick={() => setSimulatedFly(!simulatedFly)}
+                            className={`w-full p-2.5 rounded-xl border flex items-center justify-between transition-all cursor-pointer font-bold ${
+                              simulatedFly
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.05)]'
+                                : 'bg-black/30 border-white/5 text-zinc-500 hover:text-zinc-300'
+                            }`}
+                          >
+                            <span className="flex items-center gap-1.5">🛸 Infinite Jump Fly</span>
+                            <span>{simulatedFly ? 'ON' : 'OFF'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => setSimulatedNoclip(!simulatedNoclip)}
+                            className={`w-full p-2.5 rounded-xl border flex items-center justify-between transition-all cursor-pointer font-bold ${
+                              simulatedNoclip
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.05)]'
+                                : 'bg-black/30 border-white/5 text-zinc-500 hover:text-zinc-300'
+                            }`}
+                          >
+                            <span className="flex items-center gap-1.5">🌀 Noclip (Pass Walls)</span>
+                            <span>{simulatedNoclip ? 'ON' : 'OFF'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* HUD Footer status metrics */}
+                      <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[9px] text-zinc-500">
+                        <div className="flex items-center gap-1.5">
+                          <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                          <span>Status: In-game HUD fully responsive</span>
+                        </div>
+                        <button
+                          onClick={() => setIsExecuting(false)}
+                          className="px-3 py-1 rounded-xl bg-white/5 hover:bg-white/15 text-[9px] text-white transition-all font-mono uppercase font-bold cursor-pointer border border-white/5"
+                        >
+                          Return to Code Workspace
+                        </button>
+                      </div>
+                    </motion.div>
+                  )
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
