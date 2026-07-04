@@ -35,7 +35,7 @@ export const INITIAL_GAMES: RobloxGame[] = [
     id: 'nights_forest',
     name: '99 Nights in the Forest [Patched]',
     category: 'survival',
-    rawUrl: 'https://raw.githubusercontent.com/ZeroHub-Roblox/scripts/main/nightsintheforest.lua',
+    rawUrl: 'https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source',
     emojiText: '🌳',
     description: 'Perfect survival assistance. Auto warm fireplaces, animal warning ESP, item magnetic teleports and fully integrated anti-freeze bypass.',
     status: 'Undetected',

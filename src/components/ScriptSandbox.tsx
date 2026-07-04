@@ -309,7 +309,8 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
   // Generate Loadstring
   const handleCopyLoadstring = () => {
     const rawUrl = `https://studiohub-loaders.pages.dev/api/snippet/${selectedSnippet?.id || 'temp'}`;
-    const loadstringText = `loadstring(game:HttpGet("${rawUrl}", true))()`;
+    // Optimized for Delta and all major mobile & PC executors by omitting the incompatible second argument
+    const loadstringText = `loadstring(game:HttpGet("${rawUrl}"))()`;
     navigator.clipboard.writeText(loadstringText);
     setCopiedLoadstring(true);
     setTimeout(() => setCopiedLoadstring(false), 2000);

@@ -217,16 +217,18 @@ export const LuaScriptView: React.FC<LuaScriptViewProps> = ({ game, customValues
   const wrapScriptsInCohesiveLoadstring = (urls: string[]): string => {
     if (urls.length === 0) return '';
     if (urls.length === 1) {
-      return `loadstring(game:HttpGet("${urls[0]}", true))()`;
+      return `-- [[ ZeroHub Delta-Optimized Universal Loader ]]\n` +
+        `loadstring(game:HttpGet("${urls[0]}"))()`;
     }
     
-    // High-efficiency array-to-loadstring converter block with pcall safety
+    // High-efficiency array-to-loadstring converter block with pcall safety and Delta compatibility
     const formattedUrls = urls.map(url => `    "${url.trim()}"`).join(',\n');
     return `-- [[ ZeroHub Cohesive Multi-Script Execution Block ]]\n` +
       `local ZeroHubScripts = {\n${formattedUrls}\n}\n\n` +
       `for _, scriptUrl in ipairs(ZeroHubScripts) do\n` +
       `    local success, err = pcall(function()\n` +
-      `        loadstring(game:HttpGet(scriptUrl, true))()\n` +
+      `        -- Delta Executor & general mobile optimized loadstring (removed optional second param which crashes some mobile engines)\n` +
+      `        loadstring(game:HttpGet(scriptUrl))()\n` +
       `    end)\n` +
       `    if not success then\n` +
       `        warn("[ZeroHub Loader] Execution failed for Module: " .. tostring(scriptUrl) .. " | Error: " .. tostring(err))\n` +
@@ -267,28 +269,7 @@ export const LuaScriptView: React.FC<LuaScriptViewProps> = ({ game, customValues
     return configLines.join('\n');
   };
 
-  const cleanScript = isComingSoon 
-    ? `-- [[ Zero Script Hub ]]\n-- Coming Soon!` 
-    : wrapScriptsInCohesiveLoadstring(chainedUrls);
-  
-  const displayedScript = 
-    loaderType === 'clean' 
-      ? cleanScript 
-      : loaderType === 'advanced'
-        ? generateAdvancedScript()
-        : generateRawSourceScript();
-
-  // Strip or retain comments based on settings
-  const getFinalScript = () => {
-    if (showComments) return displayedScript;
-    return displayedScript
-      .split('\n')
-      .filter(line => !line.trim().startsWith('--'))
-      .join('\n')
-      .replace(/\n\n+/g, '\n'); // clean up consecutive empty lines
-  };
-
-  const finalScriptText = getFinalScript();
+  const finalScriptText = isComingSoon ? "-- Coming Soon!" : `loadstring(game:HttpGet('${game.rawUrl}'))()`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(finalScriptText);

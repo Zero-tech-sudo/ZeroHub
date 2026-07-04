@@ -4,11 +4,9 @@ import {
   Terminal, History, HelpCircle, Gamepad2, Settings as SettingsIcon,
   ChevronRight, ChevronDown, ExternalLink, Zap, Check, Gift, Layers, CheckCircle, Share2,
   LogIn, LogOut, Sun, Moon, Database, Menu, X, Clock, Shield, Cpu, Globe, Archive, Trash2, Bot,
-  ShieldAlert, Activity, Bug, Mail, Star, Code, ArrowUpDown, Copy, Flag, RotateCcw, Edit2
+  ShieldAlert, Activity, Bug, Mail, Star, Code, ArrowUpDown, Copy, Flag, RotateCcw, Edit2, Download, Wand2
 } from 'lucide-react';
 import { ScriptConfig } from './types';
-import { ScriptConfigurator } from './components/ScriptConfigurator';
-import { LuaScriptView } from './components/LuaScriptView';
 import { InstructionSheet } from './components/InstructionSheet';
 import { INITIAL_GAMES, INITIAL_CHANGELOGS, RobloxGame, ChangeLogEntry } from './gamesData';
 import { AuthModal } from './components/AuthModal';
@@ -18,7 +16,17 @@ import { SupportHub } from './components/SupportHub';
 import { ScriptSandbox } from './components/ScriptSandbox';
 import { InGamePreview } from './components/InGamePreview';
 import { motion, AnimatePresence } from 'motion/react';
-import { ResponsiveContainer, AreaChart, Area, Tooltip } from 'recharts';
+import { ResponsiveContainer, AreaChart, Area, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
+import {
+  saveCachedGames,
+  getCachedGames,
+  saveCachedFavorites,
+  getCachedFavorites,
+  saveCachedChangelogs,
+  getCachedChangelogs,
+  saveCachedPerformanceMetrics,
+  getCachedPerformanceMetrics
+} from './lib/offlineDb';
 
 // Firebase imports
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
@@ -94,6 +102,49 @@ const generateUptimeHistory = (game: RobloxGame) => {
   return data;
 };
 
+// Helper to calculate recent stability growth and combined uptime score
+const getRecentStabilityGrowthOrUptime = (game: RobloxGame) => {
+  const uptimeData = generateUptimeHistory(game);
+  // Average Uptime
+  const avgUptime = uptimeData.reduce((acc, curr) => acc + curr.uptime, 0) / uptimeData.length;
+  
+  // Stability Growth: last 7 days average - previous 23 days average
+  const last7 = uptimeData.slice(-7);
+  const prev23 = uptimeData.slice(0, 23);
+  const avgLast7 = last7.reduce((acc, curr) => acc + curr.uptime, 0) / last7.length;
+  const avgPrev23 = prev23.reduce((acc, curr) => acc + curr.uptime, 0) / prev23.length;
+  const growth = avgLast7 - avgPrev23;
+  
+  return {
+    avgUptime,
+    growth,
+    combinedScore: avgUptime + (growth * 2.5) // Prioritize both high uptime and strong recent growth
+  };
+};
+
+// Generates deterministic 3-month performance trend data (12 weeks)
+const generateThreeMonthTrend = (game: RobloxGame) => {
+  const seed = game.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const baseStability = getPerformanceRating(game).score;
+  const trend = [];
+  
+  // 12 weeks in 3 months
+  for (let w = 12; w >= 1; w--) {
+    // Deterministic fluctuations representing maintenance cycles
+    const cycle = Math.sin((seed + w) * 0.8) * 3;
+    // Introduce a periodic drop to represent a patch cycle (maintenance cycle)
+    const isMaintenanceWeek = (seed + w) % 4 === 0;
+    const maintenanceDrop = isMaintenanceWeek ? -(12 + (seed % 6)) : 0;
+    
+    const score = Math.max(45, Math.min(100, baseStability + cycle + maintenanceDrop));
+    trend.push({
+      week: `Wk ${13 - w}`,
+      stability: parseFloat(score.toFixed(1)),
+    });
+  }
+  return trend;
+};
+
 // Helper to determine colorful tag styles based on feature name category
 const getFeatureBadgeStyle = (feat: string) => {
   const f = feat.toLowerCase();
@@ -124,12 +175,24 @@ const getFeatureBadgeStyle = (feat: string) => {
 };
 
 export default function App() {
+  // Offline connectivity state
+  const [isOffline, setIsOffline] = useState<boolean>(!navigator.onLine);
+
+  // Performance comparison views
+    const [compareScriptA, setCompareScriptA] = useState<string>('nights_forest');
+  const [compareScriptB, setCompareScriptB] = useState<string>('doors');
+  const [chartViewMode, setChartViewMode] = useState<'metrics' | 'trend'>('metrics');
+  const [cachedMetrics, setCachedMetrics] = useState<Record<string, any>>({});
+
+  // AI Changelog States
+  const [aiChangelogInput, setAiChangelogInput] = useState<string>('');
+  const [isGeneratingChangelog, setIsGeneratingChangelog] = useState<boolean>(false);
+
   // Website Views: 'directory' | 'sandbox' | 'changelog' | 'education' | 'suggestions' | 'ai-compiler' | 'support'
   const [activeTab, setActiveTab] = useState<'directory' | 'sandbox' | 'changelog' | 'education' | 'suggestions' | 'ai-compiler' | 'support'>('directory');
   const [activeSubTab, setActiveSubTab] = useState<'reporter' | 'faq' | 'network' | 'creator-inbox'>('reporter');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
-  const [showCustomizer, setShowCustomizer] = useState<boolean>(false);
   const [preloadedSandboxCode, setPreloadedSandboxCode] = useState<string>('');
   const [previewGame, setPreviewGame] = useState<RobloxGame | null>(null);
   
@@ -262,7 +325,7 @@ export default function App() {
     }
   });
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'newest' | 'updated' | 'alphabetical' | 'rating'>('newest');
+  const [sortBy, setSortBy] = useState<'newest' | 'updated' | 'alphabetical' | 'rating' | 'stabilityGrowth'>('newest');
 
   const [changelogs, setChangelogs] = useState<ChangeLogEntry[]>(() => {
     try {
@@ -394,6 +457,28 @@ export default function App() {
     triggerToast(`🔄 Reset custom settings for ${game.name} to default!`);
   };
 
+  const handleExportBackup = () => {
+    try {
+      const backupData = {
+        favorites,
+        gameCustomStates,
+        exportDate: new Date().toISOString(),
+        appName: "ZeroHub"
+      };
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `zerohub_backup_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      triggerToast("📂 Exported customized script settings and favorites successfully!");
+    } catch (err) {
+      console.error("Backup export failed", err);
+      triggerToast("⚠️ Backup export failed. Please try again.");
+    }
+  };
+
   // Authentication state listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -401,6 +486,110 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // 1. Monitor network online/offline status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      triggerToast("✨ Connected back online! Database sync active.");
+    };
+    const handleOffline = () => {
+      setIsOffline(true);
+      triggerToast("⚠️ You are offline! Loaded from IndexedDB local storage.");
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // 2. Preload cached directory, favorites, and changelogs from IndexedDB on startup
+  useEffect(() => {
+    async function loadOfflineStores() {
+      try {
+        const cachedGames = await getCachedGames();
+        if (cachedGames && cachedGames.length > 0) {
+          setGames(cachedGames);
+          console.log('[ZeroHub DB] Restored games directory cache:', cachedGames.length);
+        }
+        
+        const cachedFavs = await getCachedFavorites();
+        if (cachedFavs && cachedFavs.length > 0) {
+          setFavorites(cachedFavs);
+          console.log('[ZeroHub DB] Restored favorites cache:', cachedFavs.length);
+        }
+
+        const cachedLogs = await getCachedChangelogs();
+        if (cachedLogs && cachedLogs.length > 0) {
+          setChangelogs(cachedLogs);
+          console.log('[ZeroHub DB] Restored changelogs cache:', cachedLogs.length);
+        }
+      } catch (err) {
+        console.warn('[ZeroHub DB] Offline storage initialization skipped or failed:', err);
+      }
+    }
+    loadOfflineStores();
+  }, []);
+
+  // 3. Keep IndexedDB games store synchronized with active state
+  useEffect(() => {
+    if (games && games.length > 0) {
+      saveCachedGames(games).catch(e => console.warn('Sync games to IndexedDB failed:', e));
+    }
+  }, [games]);
+
+  // 4. Keep IndexedDB favorites store synchronized with active state
+  useEffect(() => {
+    saveCachedFavorites(favorites).catch(e => console.warn('Sync favorites to IndexedDB failed:', e));
+  }, [favorites]);
+
+  // 5. Keep IndexedDB changelogs store synchronized with active state
+  useEffect(() => {
+    if (changelogs && changelogs.length > 0) {
+      saveCachedChangelogs(changelogs).catch(e => console.warn('Sync changelogs to IndexedDB failed:', e));
+    }
+  }, [changelogs]);
+
+  // 6. Preload cached performance & stability metrics from IndexedDB on startup
+  useEffect(() => {
+    async function loadOfflineMetrics() {
+      try {
+        const metrics = await getCachedPerformanceMetrics();
+        if (metrics) {
+          setCachedMetrics(metrics);
+          console.log('[ZeroHub DB] Restored performance metrics cache:', Object.keys(metrics).length);
+        }
+      } catch (err) {
+        console.warn('[ZeroHub DB] Performance metrics cache load failed:', err);
+      }
+    }
+    loadOfflineMetrics();
+  }, []);
+
+  // 7. Keep IndexedDB performance metrics synchronized with active games list
+  useEffect(() => {
+    if (games && games.length > 0) {
+      const newMetrics: Record<string, any> = { ...cachedMetrics };
+      let updated = false;
+      games.forEach((g) => {
+        if (!newMetrics[g.id]) {
+          newMetrics[g.id] = {
+            rating: getPerformanceRating(g),
+            uptimeHistory: generateUptimeHistory(g),
+            threeMonthTrend: generateThreeMonthTrend(g),
+            lastUpdated: new Date().toISOString()
+          };
+          updated = true;
+        }
+      });
+      if (updated) {
+        setCachedMetrics(newMetrics);
+        saveCachedPerformanceMetrics(newMetrics).catch(e => console.warn('[ZeroHub DB] Sync performance metrics failed:', e));
+      }
+    }
+  }, [games]);
 
   // Listen to Firestore changelogs
   useEffect(() => {
@@ -763,6 +952,55 @@ export default function App() {
     }
   };
 
+  const handleGenerateLiveChangelog = async () => {
+    if (!aiChangelogInput.trim()) return;
+    setIsGeneratingChangelog(true);
+    triggerToast("AI is generating a live changelog entry...");
+
+    try {
+      const response = await fetch("/api/generate-changelog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: aiChangelogInput }),
+      });
+
+      const data = await response.json();
+      
+      if (data.error) {
+        triggerToast("Failed to generate changelog: " + data.error);
+        setIsGeneratingChangelog(false);
+        return;
+      }
+
+      // Automatically construct the full log and add to db
+      const logId = `cl_auto_ai_${Date.now()}`;
+      const logDate = new Date().toISOString().split('T')[0];
+      const newChangelog = {
+        id: logId,
+        date: logDate,
+        version: data.version || "Unknown",
+        gameName: "Core System / AI generated",
+        type: data.type || "updated",
+        title: "Live ZeroHub System Update",
+        description: data.description || aiChangelogInput
+      };
+
+      if (sessionUser && sessionUser.uid !== 'sandbox_user_1337') {
+        await setDoc(doc(db, 'changelogs', logId), newChangelog);
+      }
+      
+      setChangelogs(prev => [newChangelog, ...prev].sort((a, b) => b.date.localeCompare(a.date)));
+      
+      setAiChangelogInput('');
+      triggerToast("Successfully deployed live AI changelog entry!");
+    } catch (err: any) {
+      console.error(err);
+      triggerToast("Error connecting to AI Changelog agent.");
+    } finally {
+      setIsGeneratingChangelog(false);
+    }
+  };
+
   const submitCustomScript = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formGameName.trim() || !formRawUrl.trim()) return;
@@ -1067,6 +1305,11 @@ export default function App() {
       const ratingB = getPerformanceRating(b).score;
       return ratingB - ratingA;
     }
+    if (sortBy === 'stabilityGrowth') {
+      const metricA = getRecentStabilityGrowthOrUptime(a).combinedScore;
+      const metricB = getRecentStabilityGrowthOrUptime(b).combinedScore;
+      return metricB - metricA;
+    }
     if (sortBy === 'updated') {
       const timeA = new Date(a.updatedAt || a.releaseDate || 0).getTime();
       const timeB = new Date(b.updatedAt || b.releaseDate || 0).getTime();
@@ -1090,8 +1333,8 @@ export default function App() {
         ['--color-accent-glow' as any]: activeAccent.glow,
         ['--color-accent-glow-light' as any]: activeAccent.glowLight
       }}
-      className={`min-h-screen font-sans selection:bg-cyan-500/20 selection:text-cyan-300 relative overflow-x-hidden transition-colors duration-300 ${
-        theme === 'ultradark' ? 'theme-ultradark bg-[#000000] text-zinc-100' : 'bg-[#06060c] text-white'
+      className={`min-h-screen font-sans selection:bg-indigo-500/30 selection:text-indigo-200 relative overflow-x-hidden transition-colors duration-300 ${
+        theme === 'ultradark' ? 'theme-ultradark bg-[#000000] text-zinc-100' : 'bg-cosmic text-white'
       }`}
     >
       
@@ -1104,7 +1347,7 @@ export default function App() {
       <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 space-y-6 relative z-10">
         
         {/* Top Control Bar with 3-Line Menu and Right Corner Login */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-zinc-950/45 backdrop-blur-md p-4 px-6 rounded-3xl border border-white/5 shadow-xl relative z-20">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 panel-glass p-4 px-6 rounded-3xl relative z-20">
           <div className="flex flex-wrap items-center gap-3">
             {/* 3-Line Menu Icon (Hamburger) */}
             <button
@@ -1127,10 +1370,17 @@ export default function App() {
             </div>
 
             {/* Cloud connectivity indicator */}
-            <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-2xl text-[10px] font-mono font-extrabold uppercase tracking-wide">
-              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-              <span>Real-Time Database Sync</span>
-            </div>
+            {isOffline ? (
+              <div className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 px-3 py-1.5 rounded-2xl text-[10px] font-mono font-extrabold uppercase tracking-wide">
+                <span className="w-1.5 h-1.5 bg-rose-400 rounded-full animate-pulse" />
+                <span>OFFLINE (CACHED SCRIPT DIRECTORY ACTIVE)</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-2xl text-[10px] font-mono font-extrabold uppercase tracking-wide">
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                <span>Real-Time Database Sync</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-end gap-2 font-mono">
@@ -1196,7 +1446,7 @@ export default function App() {
             </div>
             <h1 className="text-xl md:text-2xl font-black tracking-tight flex items-center gap-2 font-mono">
               <Zap className="w-6 h-6 text-cyan-400 fill-cyan-400/20" />
-              ZEROHUB <span className="text-cyan-400 font-normal font-sans">// Mobile Directory</span>
+              ZEROHUB <span className="text-cyan-400 font-normal font-sans">// BETA 4</span>
             </h1>
             <p className="text-xs text-white/50">
               Get modular external scripts, fine-tune physical configs, and copy high-performance executor loadstrings.
@@ -1579,6 +1829,7 @@ export default function App() {
                     <option value="updated" className="bg-zinc-950 text-zinc-200 font-sans">Last Updated</option>
                     <option value="alphabetical" className="bg-zinc-950 text-zinc-200 font-sans">Alphabetical (A-Z)</option>
                     <option value="rating" className="bg-zinc-950 text-zinc-200 font-sans">Highest Rating</option>
+                    <option value="stabilityGrowth" className="bg-zinc-950 text-zinc-200 font-sans">Stability & Uptime Growth</option>
                   </select>
                   <ChevronDown className="w-3.5 h-3.5 text-white/35 absolute right-3 pointer-events-none" />
                 </div>
@@ -1634,7 +1885,7 @@ export default function App() {
 
             {/* Recent Searches Sub-Bar */}
             {recentSearches.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-zinc-950/20 border border-white/5 rounded-2xl animate-fadeIn text-xs text-white/50">
+              <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-glass rounded-2xl animate-fadeIn text-xs text-white/50">
                 <span className="font-mono text-[10px] uppercase text-white/35 font-bold tracking-wider mr-1">Recent:</span>
                 <div className="flex flex-wrap items-center gap-1.5 flex-1">
                   {recentSearches.map((query, idx) => (
@@ -1678,7 +1929,7 @@ export default function App() {
 
             {/* Expandable Add Script Form Content */}
             {(isDevOrOwner || sessionUser?.uid === 'sandbox_user_1337') && showAddForm && (
-              <div className="glass-morphism rounded-3xl p-6 border-2 border-dashed border-cyan-500/20 bg-cyan-950/5 space-y-4 animate-fadeIn">
+              <div className="panel-glass rounded-3xl p-6 border-2 border-dashed border-cyan-500/20 bg-cyan-950/5 space-y-4 animate-fadeIn">
                 <div className="flex items-center justify-between border-b border-white/5 pb-2">
                   <h3 className="text-sm font-bold text-cyan-300 flex items-center gap-1.5 font-mono">
                     {editingGameId ? <Edit2 className="w-4 h-4 text-cyan-400" /> : <Plus className="w-4 h-4 text-cyan-400" />} {editingGameId ? 'EDIT ROBLOX GAME LOADER' : 'ADD NEW ROBLOX GAME LOADER'}
@@ -1894,7 +2145,7 @@ export default function App() {
                 
                 <div className="space-y-2.5 max-h-[640px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/5">
                   {filteredGames.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center p-8 bg-zinc-950/20 border border-white/5 rounded-3xl text-center">
+                    <div className="flex flex-col items-center justify-center p-8 bg-glass rounded-3xl text-center">
                       <Gamepad2 className="w-8 h-8 text-white/20 mb-2 animate-pulse" />
                       <div className="text-xs text-white/40">No matching game scripts found. Try adding yours using the button above!</div>
                     </div>
@@ -1911,302 +2162,370 @@ export default function App() {
                       }[game.status] || 'bg-zinc-400/10 text-zinc-300 border-zinc-400/10';
 
                       return (
-                        <div
-                          key={game.id}
-                          onClick={() => {
-                            setSelectedGameId(game.id);
-                            commitSearch(searchQuery);
-                          }}
-                          className={`w-full p-4 rounded-3xl border text-left transition-all relative cursor-pointer overflow-hidden flex flex-col gap-2 script-card-interactive group ${
-                            isSelected
-                              ? 'bg-cyan-500/10 border-cyan-400 text-cyan-50 font-semibold shadow-[0_0_20px_rgba(6,182,212,0.15)] bg-zinc-900/60'
-                              : 'bg-zinc-950/40 border-white/5 text-white/70 hover:bg-zinc-900/40 hover:border-white/10'
-                          }`}
-                        >
-                          {/* Inner glowing tag */}
-                          {isSelected && (
-                            <div className="absolute right-0 top-0 bottom-0 w-[4px] bg-cyan-400" />
-                          )}
-
-                          <div className="flex items-center justify-between">
-                            <span className="flex items-center gap-2">
-                              <span className="text-xl bg-black/40 w-8 h-8 rounded-xl flex items-center justify-center border border-white/5">
-                                {game.emojiText}
-                              </span>
-                              <div>
-                                <h3 className="text-xs font-bold text-white tracking-wide">{game.name}</h3>
-                                <span className="text-[9px] text-white/35 font-mono uppercase font-semibold">{game.category} game</span>
-                              </div>
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                              {/* Reset Slider Settings */}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleResetCustomState(game);
-                                }}
-                                className="p-1.5 rounded-xl border bg-black/30 border-white/5 text-white/40 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/10 transition-all duration-200 cursor-pointer flex items-center justify-center"
-                                title="Reset Slider Settings to Defaults"
-                              >
-                                <RotateCcw className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Quick Copy on Hover */}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigator.clipboard.writeText(game.rawUrl);
-                                  triggerToast(`📋 Script Raw URL copied for ${game.name}!`);
-                                }}
-                                className="opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 p-1.5 rounded-xl border bg-black/30 border-white/5 text-white/40 hover:text-cyan-400 hover:border-cyan-500/30 hover:bg-cyan-500/10 transition-all duration-200 cursor-pointer flex items-center justify-center"
-                                title="Quick Copy Raw URL"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Share Button */}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const directUrl = `${window.location.origin}?tab=directory&game=${game.id}`;
-                                  if (navigator.share) {
-                                    navigator.share({
-                                      title: `ZeroHub - ${game.name}`,
-                                      text: game.description,
-                                      url: directUrl,
-                                    }).catch(() => {
-                                      navigator.clipboard.writeText(directUrl);
-                                      triggerToast(`🔗 Direct link copied to clipboard!`);
-                                    });
-                                  } else {
-                                    navigator.clipboard.writeText(directUrl);
-                                    triggerToast(`🔗 Direct link copied to clipboard!`);
-                                  }
-                                }}
-                                className="p-1.5 rounded-xl border bg-black/30 border-white/5 text-white/40 hover:text-emerald-400 hover:border-emerald-500/30 hover:bg-emerald-500/10 transition-all duration-200 cursor-pointer flex items-center justify-center"
-                                title="Share Script Link"
-                              >
-                                <Share2 className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Star favorite toggle */}
-                              <button
-                                type="button"
-                                onClick={(e) => handleToggleFavorite(e, game.id)}
-                                className={`p-1.5 rounded-xl border transition-all duration-200 cursor-pointer flex items-center justify-center ${
-                                  favorites.includes(game.id)
-                                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20 hover:scale-105 active:scale-95'
-                                    : 'bg-black/30 border-white/5 text-white/20 hover:text-white/60 hover:border-white/10 hover:bg-black/50'
-                                }`}
-                                title={favorites.includes(game.id) ? "Remove from Favorites" : "Pin to Top"}
-                              >
-                                <Star className={`w-3.5 h-3.5 ${favorites.includes(game.id) ? 'fill-amber-400 text-amber-400' : ''}`} />
-                              </button>
-
-                              <div className="flex flex-col items-end gap-1">
-                                <span className={`text-[8px] border px-2 py-0.5 rounded-md font-mono font-bold ${statusColor}`}>
-                                  {game.status.toUpperCase()}
-                                </span>
-                                {isDevOrOwner && game.id.startsWith('custom_') && (
-                                  <span className={`text-[7px] border px-1.5 py-0.5 rounded-md font-mono font-bold flex items-center gap-1 ${
-                                    game.published 
-                                      ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' 
-                                      : 'bg-amber-500/10 text-amber-300 border-amber-500/20'
-                                  }`}>
-                                    <Globe className="w-2 h-2" />
-                                    {game.published ? 'LIVE' : 'BACKUP'}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <p className="text-[10px] text-white/40 leading-relaxed font-sans line-clamp-2">
-                            {game.description}
-                          </p>
-
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            {game.features.slice(0, 3).map((feat, idx) => {
-                              const badgeStyle = getFeatureBadgeStyle(feat);
-                              return (
-                                <span 
-                                  key={idx} 
-                                  className={`text-[9px] px-2 py-0.5 rounded-lg border font-medium flex items-center gap-1 transition-all duration-200 hover:scale-105 select-none ${badgeStyle}`}
+                        <div key={game.id} className="relative overflow-hidden rounded-3xl group">
+                          {/* Swipe action reveal background */}
+                          <div className="absolute inset-y-0 right-0 bg-zinc-950/90 border border-white/5 rounded-3xl flex items-center justify-end px-4 gap-2 z-0">
+                            {/* Action Buttons */}
+                            {(isDevOrOwner || game.id.startsWith('custom_') || sessionUser?.uid === 'sandbox_user_1337') ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditScript(e, game);
+                                  }}
+                                  className="p-2 px-3 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/20 text-cyan-300 rounded-xl transition-all flex items-center gap-1 text-[10px] font-mono font-bold cursor-pointer"
                                 >
-                                  <span className="w-1 h-1 rounded-full bg-current opacity-85" />
-                                  {feat}
-                                </span>
-                              );
-                            })}
-                            {game.features.length > 3 && (
-                              <span className="text-[8px] text-white/35 font-mono self-center font-bold px-1.5 py-0.5 bg-white/5 rounded border border-white/5">
-                                +{game.features.length - 3} MORE
-                              </span>
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                  <span>Edit</span>
+                                </button>
+                                {game.id.startsWith('custom_') && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteScript(e, game);
+                                    }}
+                                    className="p-2 px-3 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/20 text-rose-300 rounded-xl transition-all flex items-center gap-1 text-[10px] font-mono font-bold cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>Delete</span>
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleFavorite(e, game.id);
+                                  }}
+                                  className="p-2 px-3 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/20 text-amber-300 rounded-xl transition-all flex items-center gap-1 text-[10px] font-mono font-bold cursor-pointer"
+                                >
+                                  <Star className={`w-3.5 h-3.5 ${favorites.includes(game.id) ? 'fill-amber-300' : ''}`} />
+                                  <span>{favorites.includes(game.id) ? 'Unpin' : 'Pin'}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const directUrl = `${window.location.origin}?tab=directory&game=${game.id}`;
+                                    navigator.clipboard.writeText(directUrl);
+                                    triggerToast(`🔗 Direct link copied!`);
+                                  }}
+                                  className="p-2 px-3 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/20 text-emerald-300 rounded-xl transition-all flex items-center gap-1 text-[10px] font-mono font-bold cursor-pointer"
+                                >
+                                  <Share2 className="w-3.5 h-3.5" />
+                                  <span>Share</span>
+                                </button>
+                              </>
                             )}
                           </div>
 
-                          {/* Performance Rating Badge Section */}
-                          {(() => {
-                            const perf = getPerformanceRating(game);
-                            return (
-                              <div className="flex items-center justify-between text-[9px] font-mono border-t border-white/5 pt-2 mt-1 gap-2">
-                                <span className="text-white/35 flex items-center gap-1">
-                                  <span>⚡ Load:</span>
-                                  <span className="text-white/65 font-semibold font-mono">{perf.loadTime}ms</span>
-                                </span>
-                                <span className="text-white/35 flex items-center gap-1">
-                                  <span>🛡 Stability:</span>
-                                  <span className={`font-semibold ${
-                                    perf.score >= 90 ? 'text-emerald-400' : perf.score >= 75 ? 'text-amber-400' : 'text-rose-400'
-                                  }`}>
-                                    {perf.stabilityText}
-                                  </span>
-                                </span>
-                                <span className={`px-1.5 py-0.5 rounded-md font-bold border transition-all ${
-                                  perf.score >= 95 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.1)]' :
-                                  perf.score >= 85 ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20 shadow-[0_0_8px_rgba(6,182,212,0.1)]' :
-                                  perf.score >= 75 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.1)]' :
-                                  'bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.1)]'
-                                }`}>
-                                  PERF: {perf.score}/100
-                                </span>
-                              </div>
-                            );
-                          })()}
+                          <motion.div
+                            drag="x"
+                            dragDirectionLock
+                            dragConstraints={{ left: -140, right: 0 }}
+                            dragElastic={{ left: 0.15, right: 0.05 }}
+                            dragMomentum={false}
+                            whileDrag={{ scale: 0.99 }}
+                            onClick={() => {
+                              setSelectedGameId(game.id);
+                              setCompareScriptA(game.id);
+                              commitSearch(searchQuery);
+                            }}
+                            className={`w-full p-4 rounded-3xl border text-left transition-all relative cursor-pointer overflow-hidden flex flex-col gap-2 script-card-interactive z-10 select-none ${
+                              isSelected
+                                ? 'bg-cyan-500/10 border-cyan-400 text-cyan-50 font-semibold shadow-[0_0_20px_rgba(6,182,212,0.15)] bg-zinc-950/60'
+                                : 'bg-zinc-950/40 border-white/5 text-white/70 hover:bg-zinc-900/40 hover:border-white/10'
+                            }`}
+                          >
+                            {/* Inner glowing tag */}
+                            {isSelected && (
+                              <div className="absolute right-0 top-0 bottom-0 w-[4px] bg-cyan-400" />
+                            )}
 
-                          {/* 30-Day Uptime Stability Graph Section */}
-                          {(() => {
-                            const uptimeData = generateUptimeHistory(game);
-                            const avgUptime = (uptimeData.reduce((acc, curr) => acc + curr.uptime, 0) / uptimeData.length).toFixed(2);
-                            return (
-                              <div 
-                                className="mt-2 bg-black/45 border border-white/5 rounded-2xl p-2.5 space-y-1.5 cursor-default relative z-10"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <div className="flex items-center justify-between text-[8px] font-mono text-white/45 tracking-wider">
-                                  <span className="flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                    <span>30D UPTIME STABILITY</span>
-                                  </span>
-                                  <span className="text-white/70 font-black">AVG: {avgUptime}%</span>
+                            <div className="flex items-center justify-between">
+                              <span className="flex items-center gap-2">
+                                <span className="text-xl bg-black/40 w-8 h-8 rounded-xl flex items-center justify-center border border-white/5">
+                                  {game.emojiText}
+                                </span>
+                                <div>
+                                  <h3 className="text-xs font-bold text-white tracking-wide">{game.name}</h3>
+                                  <span className="text-[9px] text-white/35 font-mono uppercase font-semibold">{game.category} game</span>
                                 </div>
-                                <div className="h-[42px] w-full mt-1">
-                                  <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={uptimeData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
-                                      <defs>
-                                        <linearGradient id={`colorUptime-${game.id}`} x1="0" y1="0" x2="0" y2="1">
-                                          <stop offset="5%" stopColor={activeAccent.primary} stopOpacity={0.25}/>
-                                          <stop offset="95%" stopColor={activeAccent.primary} stopOpacity={0.0}/>
-                                        </linearGradient>
-                                      </defs>
-                                      <Tooltip
-                                        content={({ active, payload }) => {
-                                          if (active && payload && payload.length) {
-                                            return (
-                                              <div className="bg-zinc-950/95 border border-white/10 rounded-lg p-1.5 px-2 text-[9px] font-mono shadow-2xl text-white">
-                                                <span className="text-white/40 block leading-none mb-0.5">{payload[0].payload.day}</span>
-                                                <span className="font-bold text-cyan-400 leading-none">{payload[0].value}% Uptime</span>
-                                              </div>
-                                            );
-                                          }
-                                          return null;
-                                        }}
-                                        cursor={{ stroke: 'rgba(255,255,255,0.05)', strokeWidth: 1 }}
-                                      />
-                                      <Area
-                                        type="monotone"
-                                        dataKey="uptime"
-                                        stroke={activeAccent.primary}
-                                        strokeWidth={1.5}
-                                        fillOpacity={1}
-                                        fill={`url(#colorUptime-${game.id})`}
-                                      />
-                                    </AreaChart>
-                                  </ResponsiveContainer>
-                                </div>
-                              </div>
-                            );
-                          })()}
-
-                          {/* Last Updated Timestamp & Report Button Row */}
-                          <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-1.5 text-[9.5px] font-mono text-white/35">
-                            <span className="flex items-center gap-1 text-white/30">
-                              <Clock className="w-3 h-3 text-white/20" />
-                              <span>Updated: {game.releaseDate || '2026-06-25'}</span>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setReportingGame(game);
-                                setReportDescription('');
-                                setReportEmail(sessionUser?.email || '');
-                              }}
-                              className="flex items-center gap-1 text-white/40 hover:text-rose-400 transition-colors cursor-pointer px-2 py-0.5 rounded-lg hover:bg-rose-500/10 border border-transparent hover:border-rose-500/10"
-                              title="Report script bug / cheat issue"
-                            >
-                              <Flag className="w-3 h-3 text-rose-500/75" />
-                              <span>Report</span>
-                            </button>
-                          </div>
-
-                          {/* In-Game Interactive Video Loop Preview Button */}
-                          {isDevOrOwner && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setPreviewGame(game);
-                                triggerToast(`Loading in-game HUD preview simulation for ${game.name}...`);
-                              }}
-                              className="mt-2.5 w-full py-1.5 px-3 rounded-2xl bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-400/25 hover:border-cyan-400/50 text-cyan-300 hover:text-white text-[9px] font-mono font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(6,182,212,0.03)] cursor-pointer"
-                            >
-                              <span className="relative flex h-1.5 w-1.5 shrink-0">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500"></span>
                               </span>
-                              <span>🎥 In-Game Preview</span>
-                            </button>
-                          )}
-
-                          {/* Owner/Developer quick management controls for custom scripts */}
-                          {isDevOrOwner && (
-                            <div className="flex gap-1.5 pt-2 border-t border-white/5 mt-1">
-                              <button
-                                type="button"
-                                onClick={(e) => handleTogglePublish(e, game)}
-                                className={`flex-1 py-1 px-1.5 rounded-xl text-[8px] font-bold font-mono uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer border ${
-                                  game.published === false
-                                    ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20 text-emerald-300'
-                                    : 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20 text-amber-300'
-                                }`}
-                              >
-                                {game.published === false ? <Globe className="w-2.5 h-2.5" /> : <Archive className="w-2.5 h-2.5" />}
-                                <span>{game.published === false ? 'Publish Live' : 'Send to Backup'}</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => handleEditScript(e, game)}
-                                className="px-2.5 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 text-cyan-300 rounded-xl transition-all cursor-pointer flex items-center justify-center"
-                                title="Edit Script Metadata / Code URL"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              {game.id.startsWith('custom_') && (
+                              <div className="flex items-center gap-1.5">
+                                {/* Reset Slider Settings */}
                                 <button
                                   type="button"
-                                  onClick={(e) => handleDeleteScript(e, game)}
-                                  className="px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 rounded-xl transition-all cursor-pointer flex items-center justify-center"
-                                  title="Delete Script completely"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleResetCustomState(game);
+                                  }}
+                                  className="p-1.5 rounded-xl border bg-black/30 border-white/5 text-white/40 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/10 transition-all duration-200 cursor-pointer flex items-center justify-center"
+                                  title="Reset Slider Settings to Defaults"
                                 >
-                                  <Trash2 className="w-3 h-3" />
+                                  <RotateCcw className="w-3.5 h-3.5" />
                                 </button>
+
+                                {/* Quick Copy on Hover */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(game.rawUrl);
+                                    triggerToast(`📋 Script Raw URL copied for ${game.name}!`);
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 p-1.5 rounded-xl border bg-black/30 border-white/5 text-white/40 hover:text-cyan-400 hover:border-cyan-500/30 hover:bg-cyan-500/10 transition-all duration-200 cursor-pointer flex items-center justify-center"
+                                  title="Quick Copy Raw URL"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+
+                                {/* Share Button */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const directUrl = `${window.location.origin}?tab=directory&game=${game.id}`;
+                                    if (navigator.share) {
+                                      navigator.share({
+                                        title: `ZeroHub - ${game.name}`,
+                                        text: game.description,
+                                        url: directUrl,
+                                      }).catch(() => {
+                                        navigator.clipboard.writeText(directUrl);
+                                        triggerToast(`🔗 Direct link copied to clipboard!`);
+                                      });
+                                    } else {
+                                      navigator.clipboard.writeText(directUrl);
+                                      triggerToast(`🔗 Direct link copied to clipboard!`);
+                                    }
+                                  }}
+                                  className="p-1.5 rounded-xl border bg-black/30 border-white/5 text-white/40 hover:text-emerald-400 hover:border-emerald-500/30 hover:bg-emerald-500/10 transition-all duration-200 cursor-pointer flex items-center justify-center"
+                                  title="Share Script Link"
+                                >
+                                  <Share2 className="w-3.5 h-3.5" />
+                                </button>
+
+                                {/* Star favorite toggle */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleToggleFavorite(e, game.id)}
+                                  className={`p-1.5 rounded-xl border transition-all duration-200 cursor-pointer flex items-center justify-center ${
+                                    favorites.includes(game.id)
+                                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20 hover:scale-105 active:scale-95'
+                                      : 'bg-black/30 border-white/5 text-white/20 hover:text-white/60 hover:border-white/10 hover:bg-black/50'
+                                  }`}
+                                  title={favorites.includes(game.id) ? "Remove from Favorites" : "Pin to Top"}
+                                >
+                                  <Star className={`w-3.5 h-3.5 ${favorites.includes(game.id) ? 'fill-amber-400 text-amber-400' : ''}`} />
+                                </button>
+
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className={`text-[8px] border px-2 py-0.5 rounded-md font-mono font-bold ${statusColor}`}>
+                                    {game.status.toUpperCase()}
+                                  </span>
+                                  {isDevOrOwner && game.id.startsWith('custom_') && (
+                                    <span className={`text-[7px] border px-1.5 py-0.5 rounded-md font-mono font-bold flex items-center gap-1 ${
+                                      game.published 
+                                        ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' 
+                                        : 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+                                    }`}>
+                                      <Globe className="w-2.5 h-2.5" />
+                                      {game.published ? 'LIVE' : 'BACKUP'}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <p className="text-[10px] text-white/40 leading-relaxed font-sans line-clamp-2">
+                              {game.description}
+                            </p>
+
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {game.features.slice(0, 3).map((feat, idx) => {
+                                const badgeStyle = getFeatureBadgeStyle(feat);
+                                return (
+                                  <span 
+                                    key={idx} 
+                                    className={`text-[9px] px-2 py-0.5 rounded-lg border font-medium flex items-center gap-1 transition-all duration-200 hover:scale-105 select-none ${badgeStyle}`}
+                                  >
+                                    <span className="w-1 h-1 rounded-full bg-current opacity-85" />
+                                    {feat}
+                                  </span>
+                                );
+                              })}
+                              {game.features.length > 3 && (
+                                <span className="text-[8px] text-white/35 font-mono self-center font-bold px-1.5 py-0.5 bg-white/5 rounded border border-white/5">
+                                  +{game.features.length - 3} MORE
+                                </span>
                               )}
                             </div>
-                          )}
+
+                            {/* Performance Rating Badge Section */}
+                            {(() => {
+                              const perf = getPerformanceRating(game);
+                              return (
+                                <div className="flex items-center justify-between text-[9px] font-mono border-t border-white/5 pt-2 mt-1 gap-2">
+                                  <span className="text-white/35 flex items-center gap-1">
+                                    <span>⚡ Load:</span>
+                                    <span className="text-white/65 font-semibold font-mono">{perf.loadTime}ms</span>
+                                  </span>
+                                  <span className="text-white/35 flex items-center gap-1">
+                                    <span>🛡 Stability:</span>
+                                    <span className={`font-semibold ${
+                                      perf.score >= 90 ? 'text-emerald-400' : perf.score >= 75 ? 'text-amber-400' : 'text-rose-400 animate-stability-pulse font-bold'
+                                    }`}>
+                                      {perf.stabilityText}
+                                    </span>
+                                  </span>
+                                  <span className={`px-1.5 py-0.5 rounded-md font-bold border transition-all ${
+                                    perf.score >= 95 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.1)]' :
+                                    perf.score >= 85 ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20 shadow-[0_0_8px_rgba(6,182,212,0.1)]' :
+                                    perf.score >= 75 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.1)]' :
+                                    'bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.15)] animate-stability-pulse'
+                                  }`}>
+                                    PERF: {perf.score}/100
+                                  </span>
+                                </div>
+                              );
+                            })()}
+
+                            {/* 30-Day Uptime Stability Graph Section */}
+                            {(() => {
+                              const uptimeData = generateUptimeHistory(game);
+                              const avgUptime = (uptimeData.reduce((acc, curr) => acc + curr.uptime, 0) / uptimeData.length).toFixed(2);
+                              return (
+                                <div 
+                                  className="mt-2 bg-black/45 border border-white/5 rounded-2xl p-2.5 space-y-1.5 cursor-default relative z-10"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="flex items-center justify-between text-[8px] font-mono text-white/45 tracking-wider">
+                                    <span className="flex items-center gap-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                      <span>30D UPTIME STABILITY</span>
+                                    </span>
+                                    <span className="text-white/70 font-black">AVG: {avgUptime}%</span>
+                                  </div>
+                                  <div className="h-[42px] w-full mt-1">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                      <AreaChart data={uptimeData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+                                        <defs>
+                                          <linearGradient id={`colorUptime-${game.id}`} x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor={activeAccent.primary} stopOpacity={0.25}/>
+                                            <stop offset="95%" stopColor={activeAccent.primary} stopOpacity={0.0}/>
+                                          </linearGradient>
+                                        </defs>
+                                        <Tooltip
+                                          content={({ active, payload }) => {
+                                            if (active && payload && payload.length) {
+                                              return (
+                                                <div className="bg-zinc-950/95 border border-white/10 rounded-lg p-1.5 px-2 text-[9px] font-mono shadow-2xl text-white">
+                                                  <span className="text-white/40 block leading-none mb-0.5">{payload[0].payload.day}</span>
+                                                  <span className="font-bold text-cyan-400 leading-none">{payload[0].value}% Uptime</span>
+                                                </div>
+                                              );
+                                            }
+                                            return null;
+                                          }}
+                                          cursor={{ stroke: 'rgba(255,255,255,0.05)', strokeWidth: 1 }}
+                                        />
+                                        <Area
+                                          type="monotone"
+                                          dataKey="uptime"
+                                          stroke={activeAccent.primary}
+                                          strokeWidth={1.5}
+                                          fillOpacity={1}
+                                          fill={`url(#colorUptime-${game.id})`}
+                                        />
+                                      </AreaChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                            {/* Last Updated Timestamp & Report Button Row */}
+                            <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-1.5 text-[9.5px] font-mono text-white/35">
+                              <span className="flex items-center gap-1 text-white/30">
+                                <Clock className="w-3 h-3 text-white/20" />
+                                <span>Updated: {game.releaseDate || '2026-06-25'}</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setReportingGame(game);
+                                  setReportDescription('');
+                                  setReportEmail(sessionUser?.email || '');
+                                }}
+                                className="flex items-center gap-1 text-white/40 hover:text-rose-400 transition-colors cursor-pointer px-2 py-0.5 rounded-lg hover:bg-rose-500/10 border border-transparent hover:border-rose-500/10"
+                                title="Report script bug / cheat issue"
+                              >
+                                <Flag className="w-3 h-3 text-rose-500/75" />
+                                <span>Report</span>
+                              </button>
+                            </div>
+
+                            {/* In-Game Interactive Video Loop Preview Button */}
+                            {isDevOrOwner && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPreviewGame(game);
+                                  triggerToast(`Loading in-game HUD preview simulation for ${game.name}...`);
+                                }}
+                                className="mt-2.5 w-full py-1.5 px-3 rounded-2xl bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-400/25 hover:border-cyan-400/50 text-cyan-300 hover:text-white text-[9px] font-mono font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(6,182,212,0.03)] cursor-pointer"
+                              >
+                                <span className="relative flex h-1.5 w-1.5 shrink-0">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500"></span>
+                                </span>
+                                <span>🎥 In-Game Preview</span>
+                              </button>
+                            )}
+
+                            {/* Owner/Developer quick management controls for custom scripts */}
+                            {isDevOrOwner && (
+                              <div className="flex gap-1.5 pt-2 border-t border-white/5 mt-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleTogglePublish(e, game)}
+                                  className={`flex-1 py-1 px-1.5 rounded-xl text-[8px] font-bold font-mono uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer border ${
+                                    game.published === false
+                                      ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20 text-emerald-300'
+                                      : 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20 text-amber-300'
+                                  }`}
+                                >
+                                  {game.published === false ? <Globe className="w-2.5 h-2.5" /> : <Archive className="w-2.5 h-2.5" />}
+                                  <span>{game.published === false ? 'Publish Live' : 'Send to Backup'}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleEditScript(e, game)}
+                                  className="px-2.5 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 text-cyan-300 rounded-xl transition-all cursor-pointer flex items-center justify-center"
+                                  title="Edit Script Metadata / Code URL"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                {game.id.startsWith('custom_') && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleDeleteScript(e, game)}
+                                    className="px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 rounded-xl transition-all cursor-pointer flex items-center justify-center"
+                                    title="Delete Script completely"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </motion.div>
                         </div>
                       );
                     })
@@ -2217,61 +2536,68 @@ export default function App() {
               {/* Right Settings and Copy Area (8 Cols) */}
               <div className="lg:col-span-8 flex flex-col gap-4">
                 
-                {/* Customizer Toggle Header */}
-                <div className="flex justify-between items-center bg-zinc-950/20 p-3 px-4 rounded-3xl border border-white/5 backdrop-blur-md">
-                  <div className="flex items-center gap-2">
-                    <SettingsIcon className="w-4 h-4 text-cyan-400" />
-                    <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">Script Configuration Options</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCustomizer(!showCustomizer);
-                      triggerToast(showCustomizer ? "Script sliders hidden!" : "Custom walkspeed & jump sliders enabled!");
-                    }}
-                    className={`p-1.5 px-3.5 rounded-xl border text-[9px] font-mono font-bold uppercase transition-all cursor-pointer ${
-                      showCustomizer 
-                        ? 'bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/30 text-rose-300 shadow-[0_0_10px_rgba(244,63,94,0.1)]' 
-                        : 'bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-400/20 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.1)]'
-                    }`}
-                  >
-                    <span>{showCustomizer ? 'Hide Sliders' : 'Customize Sliders'}</span>
-                  </button>
-                </div>
-
+                {/* LOW STABILITY ALERT OVERLAY BLOCK */}
+                {(() => {
+                  const activePerf = getPerformanceRating(activeGame);
+                  if (activePerf.score < 75) {
+                    return (
+                      <div className="bg-rose-500/10 border-2 border-rose-500/30 rounded-3xl p-4.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-shake shadow-[0_0_25px_rgba(239,68,68,0.15)] relative overflow-hidden group">
+                        {/* Background warning pattern */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-rose-500/5 via-transparent to-transparent opacity-50 pointer-events-none" />
+                        <div className="flex items-start sm:items-center gap-3.5 relative z-10">
+                          <div className="p-3 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse shrink-0">
+                            <ShieldAlert className="w-5 h-5 text-rose-400" />
+                          </div>
+                          <div className="space-y-1">
+                            <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-rose-300 flex items-center gap-2">
+                              CRITICAL STABILITY ALERT: {activePerf.score}% STABILITY
+                            </h4>
+                            <p className="text-[10.5px] text-white/75 font-sans leading-relaxed">
+                              This script ({activeGame.name}) is currently flagged as <strong>{activePerf.stabilityText.toUpperCase()}</strong> due to a recent Roblox update or patch. Run custom thread configurations with stealth mode enabled to avoid client-side detection.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 relative z-10 shrink-0 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveTab('changelog');
+                              triggerToast("Loading update timelines...");
+                            }}
+                            className="p-1.5 px-3 bg-rose-500/20 hover:bg-rose-500/35 text-rose-200 border border-rose-500/30 rounded-xl transition-all font-mono text-[9.5px] font-bold uppercase cursor-pointer"
+                          >
+                            Timeline Log
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+                
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch flex-1">
-                  {/* 1. Config Selector (6 Cols) */}
-                  {showCustomizer && (
-                    <div className="md:col-span-6 animate-fadeIn">
-                      <ScriptConfigurator 
-                        game={activeGame} 
-                        customValues={activeCustomState} 
-                        onChange={handleCustomStateChange} 
-                        sessionUser={sessionUser}
-                        allCustomStates={gameCustomStates}
-                        triggerToast={triggerToast}
-                        allGames={games}
-                      />
+                  <div className="md:col-span-12 flex flex-col h-full font-mono transition-all duration-300">
+                    <div className="bg-black/40 p-4 rounded-xl border border-white/5 font-mono shadow-inner flex items-center justify-between">
+                      <pre className="text-cyan-300 whitespace-pre overflow-x-auto select-all text-xs">
+                        {`loadstring(game:HttpGet('${activeGame.rawUrl}'))()`}
+                      </pre>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(`loadstring(game:HttpGet('${activeGame.rawUrl}'))()`);
+                          triggerToast("Copied loadstring to clipboard!");
+                        }}
+                        className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-white transition-colors flex-shrink-0 ml-4 cursor-pointer"
+                        title="Copy Script"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
                     </div>
-                  )}
-
-                  {/* 2. Loader Snippet (6 or 12 Cols depending on showCustomizer) */}
-                  <div className={`${showCustomizer ? 'md:col-span-6' : 'md:col-span-12'} flex flex-col h-full font-mono transition-all duration-300`}>
-                    <LuaScriptView 
-                      game={activeGame} 
-                      customValues={activeCustomState} 
-                      isDevOrOwner={isDevOrOwner}
-                    />
-
-                    {/* Guide below code container */}
                     <div className="mt-4">
                       <InstructionSheet game={activeGame} />
                     </div>
                   </div>
                 </div>
-
               </div>
-
             </div>
 
             {/* Quick Promo Carousel cards */}
@@ -2322,19 +2648,44 @@ export default function App() {
           />
         )}
 
-
-
         {/* Tab 3: Sleek Change Log timeline */}
         {activeTab === 'changelog' && (
           <div className="max-w-3xl mx-auto space-y-6">
-            <div className="bg-zinc-950/40 p-5 rounded-3xl border border-white/5 space-y-2">
-              <h2 className="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
+            <div className="bg-glass p-6 rounded-3xl space-y-2 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 blur-[50px] -z-10 rounded-full"></div>
+              <h2 className="text-lg font-extrabold text-white tracking-tight flex items-center gap-2">
                 <History className="w-5 h-5 text-cyan-400" /> ZeroHub Repository Change logs
               </h2>
-              <p className="text-xs text-white/40">
+              <p className="text-xs text-zinc-400">
                 Track previous updates, anti-detection changes, and gameplay improvements deployed live.
               </p>
             </div>
+            
+            {isDevOrOwner && (
+              <div className="bg-purple-900/10 p-5 rounded-3xl border border-purple-500/20 space-y-3 relative overflow-hidden shadow-[0_0_20px_rgba(168,85,247,0.1)]">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none"></div>
+                <div className="flex items-center gap-2 relative z-10">
+                  <Wand2 className="w-4 h-4 text-purple-400 animate-pulse" />
+                  <h3 className="text-[12px] font-bold text-purple-300 font-mono uppercase tracking-wider">AI Changelog Agent (Admin)</h3>
+                </div>
+                <div className="flex gap-2 relative z-10">
+                  <input
+                    type="text"
+                    value={aiChangelogInput}
+                    onChange={(e) => setAiChangelogInput(e.target.value)}
+                    placeholder="Describe your fix/update (e.g. Fixed the ESP bug in Bedwars and updated UI...)"
+                    className="flex-1 bg-black/40 border border-purple-500/30 rounded-xl px-4 py-2.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-purple-400/50 focus:ring-1 focus:ring-purple-400/50 transition-all font-mono"
+                  />
+                  <button
+                    onClick={handleGenerateLiveChangelog}
+                    disabled={isGeneratingChangelog || !aiChangelogInput.trim()}
+                    className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 px-5 py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer font-mono"
+                  >
+                    {isGeneratingChangelog ? "Generating..." : "Generate Live"}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-4">
               {changelogs.map((log) => {
@@ -2346,21 +2697,20 @@ export default function App() {
                 }[log.type] || 'bg-zinc-400/10 text-zinc-300 border-zinc-400/10';
 
                 return (
-                  <div key={log.id} className="glass-morphism rounded-3xl p-5 border border-white/5 space-y-3 bg-zinc-950/20 flex flex-col sm:flex-row sm:items-start gap-4">
-                    <div className="sm:w-36 shrink-0 flex flex-col">
-                      <span className="text-[10px] text-white/30 font-mono font-semibold">{log.date}</span>
-                      <span className="text-[12px] font-bold text-white/80">{log.version}</span>
-                      <span className="text-[10px] text-cyan-400 font-mono mt-1 font-bold">{log.gameName}</span>
+                  <div key={log.id} className="panel-glass rounded-3xl p-6 transition-all hover:bg-zinc-950/80 flex flex-col sm:flex-row sm:items-start gap-5 group">
+                    <div className="sm:w-36 shrink-0 flex flex-col gap-1">
+                      <span className="text-[10px] text-zinc-500 font-mono font-medium">{log.date}</span>
+                      <span className="text-[13px] font-bold text-zinc-200">{log.version}</span>
+                      <span className="text-[10px] text-cyan-400/80 font-mono mt-1 font-bold tracking-tight">{log.gameName}</span>
                     </div>
-
-                    <div className="flex-1 space-y-1.5">
+                    <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2">
-                        <span className={`text-[8px] font-mono border font-bold uppercase rounded px-1.5 py-0.5 ${badgeStyle}`}>
+                        <span className={`text-[9px] font-mono font-bold uppercase rounded-md px-2 py-0.5 ${badgeStyle}`}>
                           {log.type}
                         </span>
-                        <h4 className="text-xs font-bold text-white">{log.title}</h4>
+                        <h4 className="text-sm font-bold text-white group-hover:text-cyan-100 transition-colors">{log.title}</h4>
                       </div>
-                      <p className="text-[11px] text-white/50 leading-relaxed font-sans">
+                      <p className="text-[12px] text-zinc-400 leading-relaxed font-sans">
                         {log.description}
                       </p>
                     </div>
@@ -2374,7 +2724,7 @@ export default function App() {
         {/* Tab 4: How It Works & Roblox Lua Compilers */}
         {activeTab === 'education' && (
           <div className="max-w-4xl mx-auto space-y-6 font-sans">
-            <div className="bg-zinc-950/40 p-5 rounded-3xl border border-white/5 space-y-1.5">
+            <div className="bg-glass p-6 rounded-3xl space-y-1.5">
               <h2 className="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
                 <HelpCircle className="w-5 h-5 text-cyan-400" /> Roblox Luau Loadstring Guide
               </h2>
@@ -2385,7 +2735,7 @@ export default function App() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
-              <div className="glass-morphism rounded-3xl p-6 border border-white/5 bg-zinc-950/10 space-y-4">
+              <div className="panel-glass rounded-3xl p-6 border border-white/5 bg-zinc-950/10 space-y-4">
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono text-cyan-400">1. Anatomy of loadstring()</h3>
                 <p className="text-xs text-white/50 leading-relaxed">
                   In normal Roblox scripting, all local scripts must be packaged into the game file when the server mounts. However, exploit developers take benefit of a Roblox command: <code className="text-amber-400 bg-black/40 px-1 py-0.5 rounded font-mono font-bold text-[10px]">loadstring(luaCodeString)()</code>.
@@ -2402,7 +2752,7 @@ export default function App() {
                 </p>
               </div>
 
-              <div className="glass-morphism rounded-3xl p-6 border border-white/5 bg-zinc-950/10 space-y-4">
+              <div className="panel-glass rounded-3xl p-6 border border-white/5 bg-zinc-950/10 space-y-4">
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono text-emerald-400 font-sans">2. Auto-Updates & Cloud Synced Core</h3>
                 <p className="text-xs text-white/50 leading-relaxed">
                   Roblox frequently pushes weekly game patches. If a game changes its character movement values or security detectors, old local text files instantly crash.
@@ -2426,7 +2776,7 @@ export default function App() {
             </div>
 
             {/* General FAQs */}
-            <div className="glass-morphism rounded-3xl p-6 border border-white/5 space-y-4">
+            <div className="panel-glass rounded-3xl p-6 border border-white/5 space-y-4">
               <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-cyan-400">Common Security FAQ</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                 <div className="space-y-1">

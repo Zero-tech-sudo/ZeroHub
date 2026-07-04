@@ -127,6 +127,52 @@ You must return only a valid JSON response adhering exactly to this structure:
     }
   });
 
+  // AI Route: Generate Changelog Entry
+  app.post("/api/generate-changelog", async (req, res) => {
+    try {
+      const { description } = req.body;
+      if (!description) {
+        return res.status(400).json({ error: "Description is required" });
+      }
+
+      if (!ai) {
+        return res.json({
+          version: "1.0.x",
+          description: `(AI Offline) Processed: ${description}`,
+          type: "fixed"
+        });
+      }
+
+      const systemInstruction = `You are a technical writer for ZeroHub, a Roblox Exploit Script Directory. 
+The developer will provide a rough description of what they fixed or added.
+Your job is to generate a professional, concise changelog entry in JSON format.
+Only return a JSON object with this exact structure:
+{
+  "version": "Semantic version string (e.g. 1.2.4) infer or increment appropriately",
+  "description": "A highly professional, punchy description of the update/fix.",
+  "type": "added" | "fixed" | "updated" | "removed"
+}
+Make it sound extremely professional, technical, and high-quality.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: `Generate a changelog entry for this update: "${description}"`,
+        config: {
+          systemInstruction,
+          responseMimeType: "application/json",
+          temperature: 0.2,
+        },
+      });
+
+      const responseText = response.text || "{}";
+      const result = JSON.parse(responseText.trim());
+      res.json(result);
+    } catch (err: any) {
+      console.error("AI Changelog Generation Error:", err);
+      res.status(500).json({ error: err.message || "Failed to generate changelog" });
+    }
+  });
+
   // AI Support Chat Bot Route
   app.post("/api/support-chat", async (req, res) => {
     try {

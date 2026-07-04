@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -6,264 +5,82 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-.glass-morphism {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+@layer base {
+  body {
+    @apply bg-[#0a0a0c] text-zinc-300 antialiased selection:bg-indigo-500/30 selection:text-indigo-200 overflow-x-hidden;
+  }
 }
 
-/* Ultra-Dark High-Contrast Theme Overrides */
-.theme-ultradark {
-  background-color: #000000 !important;
-  background-image: none !important;
+/* Cosmic Slate Background Utility */
+.bg-cosmic {
+  background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0a0a0c 60%);
 }
 
-.theme-ultradark .fixed,
-.theme-ultradark .pointer-events-none {
-  display: none !important;
+.bg-glass {
+  @apply bg-zinc-950/40 backdrop-blur-xl border border-white/5;
 }
 
-.theme-ultradark .glass-morphism {
-  background: #09090b !important;
-  border: 2px solid rgba(255, 255, 255, 0.35) !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+.panel-glass {
+  @apply bg-zinc-950/60 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)];
 }
 
-.theme-ultradark .black-glass-morphism,
-.theme-ultradark bg-black/40 {
-  background: #000000 !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.3) !important;
-}
-
-.theme-ultradark .neon-text {
-  color: #ffffff !important;
-  text-shadow: none !important;
-}
-
-.theme-ultradark .text-cyan-400,
-.theme-ultradark .text-cyan-300,
-.theme-ultradark .text-cyan-200,
-.theme-ultradark .text-emerald-400,
-.theme-ultradark .text-indigo-400,
-.theme-ultradark .text-indigo-300,
-.theme-ultradark .text-yellow-400,
-.theme-ultradark .text-amber-300,
-.theme-ultradark .text-amber-400 {
-  color: #ffffff !important;
-}
-
-.theme-ultradark .bg-cyan-500\/10,
-.theme-ultradark .bg-cyan-500\/20,
-.theme-ultradark .bg-cyan-950\/15,
-.theme-ultradark .bg-yellow-500\/10,
-.theme-ultradark .bg-orange-500\/10,
-.theme-ultradark .bg-emerald-500\/10,
-.theme-ultradark .bg-indigo-500\/10 {
-  background-color: #18181b !important;
-  border-color: rgba(255, 255, 255, 0.35) !important;
-  color: #ffffff !important;
-}
-
-.theme-ultradark .border-white\/5,
-.theme-ultradark .border-white\/10,
-.theme-ultradark .border-white\/20,
-.theme-ultradark .border-cyan-400 {
-  border-color: rgba(255, 255, 255, 0.3) !important;
-}
-
-.theme-ultradark .accent-button {
-  background: #ffffff !important;
-  color: #000000 !important;
-  font-weight: 800 !important;
-  box-shadow: none !important;
-  border: 2px solid #ffffff !important;
-}
-
-.theme-ultradark .accent-button:hover {
-  background: #e4e4e7 !important;
-}
-
-.theme-ultradark input[type="text"],
-.theme-ultradark textarea,
-.theme-ultradark select {
-  background-color: #0c0c0e !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.5) !important;
-  color: #ffffff !important;
-}
-
-.theme-ultradark input[type="range"] {
-  accent-color: #ffffff !important;
-}
-
-.theme-ultradark .border-b,
-.theme-ultradark .border-t {
-  border-color: rgba(255, 255, 255, 0.25) !important;
-}
-
-.neon-text {
-  color: #22d3ee;
-  text-shadow: 0 0 15px rgba(34, 211, 238, 0.4);
-}
-
-.accent-button {
-  background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
-  box-shadow: 0 4px 20px rgba(8, 145, 178, 0.3);
-}
-
-.input-track {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Custom scrollbars for full styling consistency */
+/* Tech Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0,0,0,0.2);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 99px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(34, 211, 238, 0.3);
+  background: rgba(255,255,255,0.2);
 }
 
-/* In-Game Preview Screen Live Animations */
-@keyframes scanline {
-  0% {
-    top: 0%;
+.markdown-body {
+  @apply text-sm leading-relaxed;
+}
+.markdown-body pre {
+  @apply bg-black/60 p-4 rounded-xl border border-white/10 overflow-x-auto my-3;
+}
+.markdown-body code {
+  @apply font-mono text-[0.85em] text-indigo-300;
+}
+.markdown-body pre code {
+  @apply text-zinc-300;
+}
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+  @apply font-bold text-white mt-4 mb-2;
+}
+
+/* Custom continuous subtle shake animation */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-1px); }
+  20%, 40%, 60%, 80% { transform: translateX(1px); }
+}
+
+.animate-shake {
+  animation: shake 1.2s cubic-bezier(.36,.07,.19,.97) infinite;
+}
+
+/* Custom stability badge warning pulse */
+@keyframes stabilityPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 0 0px rgba(239, 68, 68, 0.4);
   }
-  100% {
-    top: 100%;
-  }
-}
-
-@keyframes warpLine {
-  0% {
-    transform: translateX(-100%);
-    opacity: 0;
-  }
-  10% {
-    opacity: 0.8;
-  }
-  90% {
-    opacity: 0.8;
-  }
-  100% {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-}
-
-.animate-scanline {
-  animation: scanline 4s linear infinite;
-}
-
-.animate-warpLine {
-  animation: warpLine 1.5s linear infinite;
-}
-
-/* Interactive Game/Script Cards Hover Glow and Scale */
-.script-card-interactive {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
-              border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
-              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
-              background-color 0.25s ease;
-}
-
-.script-card-interactive:hover {
-  transform: translateY(-3px);
-  border-color: var(--color-accent, #06b6d4) !important;
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.7), 
-              0 0 15px 1px var(--color-accent-glow, rgba(6, 182, 212, 0.3)) !important;
-}
-
-.script-card-interactive:active {
-  transform: translateY(-1px) scale(0.995);
-}
-
-/* Cyber-Sleek Modern High-Contrast Style Foundations */
-.cyber-panel {
-  background: rgba(10, 10, 16, 0.95);
-  border: 1.5px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 0 1px rgba(255, 255, 255, 0.1), inset 0 0 12px rgba(255, 255, 255, 0.02);
-}
-
-.cyber-panel-accent {
-  border-left: 4px solid var(--color-accent, #06b6d4) !important;
-}
-
-.cyber-title-gradient {
-  background: linear-gradient(to right, #ffffff, var(--color-accent, #06b6d4));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-weight: 700;
-  letter-spacing: -0.025em;
-}
-
-.cyber-tag {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 4px 8px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-/* Enhancing Mobile Accessibility & Text Readability */
-@media (max-width: 768px) {
-  /* Increase touch targets to at least 44px */
-  button, 
-  a, 
-  input[type="button"], 
-  select {
-    min-height: 44px;
-    padding-top: 10px !important;
-    padding-bottom: 10px !important;
-  }
-
-  /* Make code viewers and text much larger and clearer on mobile */
-  pre, code, textarea {
-    font-size: 13px !important;
-    line-height: 1.6 !important;
-  }
-
-  /* Force pure, solid background on mobile to save power and increase raw contrast */
-  .glass-morphism {
-    background: #06060c !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
-  }
-
-  /* Disable expensive heavy blurring on mobile GPUs */
-  * {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  /* Ensure text colors are ultra high contrast against dark bg */
-  .text-white\/70, .text-zinc-400, .text-gray-400 {
-    color: rgba(255, 255, 255, 0.88) !important;
-  }
-
-  .text-white\/40, .text-zinc-500, .text-gray-500 {
-    color: rgba(255, 255, 255, 0.65) !important;
+  50% {
+    opacity: 0.85;
+    transform: scale(1.02);
+    box-shadow: 0 0 12px 3px rgba(239, 68, 68, 0.25);
   }
 }
 
-/* Subtle glowing accent highlight */
-.cyber-glow-border {
-  border-color: var(--color-accent, #06b6d4) !important;
-  box-shadow: 0 0 10px var(--color-accent-glow-light, rgba(6, 182, 212, 0.15)) !important;
+.animate-stability-pulse {
+  animation: stabilityPulse 1.8s ease-in-out infinite;
 }
-
