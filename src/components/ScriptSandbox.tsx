@@ -40,9 +40,9 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
 
   // Form states for the current workspace
   const [title, setTitle] = useState('New Luau Snippet');
-  const [code, setCode] = useState('-- [[ StudioHub Luau Script ]]\n-- Write your custom Roblox scripts here\n\nfunction activateHack()\n    print("Executing custom hack registers...")\nend\n\nactivateHack()');
-  const [description, setDescription] = useState('My performance config script');
-  const [tagInput, setTagInput] = useState('farming, mobile');
+  const [code, setCode] = useState('-- [[ StudioHub Luau Learning Script ]]\n-- Write safe Roblox Studio learning snippets here\n\nlocal function greet()\n    print("Hello from a local learning snippet!")\nend\n\ngreet()');
+  const [description, setDescription] = useState('My educational Luau snippet');
+  const [tagInput, setTagInput] = useState('learning, ui');
 
   // Linter & compilation simulator states
   const [lintResult, setLintResult] = useState<{
@@ -53,7 +53,7 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
   const [isLinting, setIsLinting] = useState(false);
   const [copiedLoadstring, setCopiedLoadstring] = useState(false);
 
-  // Delta Executor simulation states inside sandbox
+  // Local learning simulation states inside sandbox
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionLogs, setExecutionLogs] = useState<string[]>([]);
   const [executionStep, setExecutionStep] = useState(0);
@@ -81,19 +81,19 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
   // Code Templates list
   const templates = [
     {
-      name: 'WalkSpeed Loop',
-      desc: 'Maintains WalkSpeed securely',
-      code: `-- [[ SECURE WALKSPEED BUFFER ]]\nlocal targetSpeed = 120\nlocal lp = game:GetService("Players").LocalPlayer\n\nspawn(function()\n    while wait(0.5) do\n        if lp.Character and lp.Character:FindFirstChild("Humanoid") then\n            lp.Character.Humanoid.WalkSpeed = targetSpeed\n        end\n    end\nend)`
+      name: 'UI Button Demo',
+      desc: 'Creates a simple clickable UI button',
+      code: `-- [[ SAFE UI BUTTON DEMO ]]\nlocal screenGui = Instance.new("ScreenGui")\nscreenGui.Name = "LearningButtonDemo"\n\nlocal button = Instance.new("TextButton")\nbutton.Size = UDim2.new(0, 180, 0, 44)\nbutton.Text = "Click Me"\nbutton.Parent = screenGui\n\nbutton.MouseButton1Click:Connect(function()\n    print("Button clicked in a local learning demo")\nend)\n\nprint("Parent screenGui to PlayerGui when testing in Roblox Studio.")`
     },
     {
-      name: 'Infinite Jump',
-      desc: 'Bypasses jump checks',
-      code: `-- [[ UNIVERSAL INFINITE JUMP ]]\nlocal UserInputService = game:GetService("UserInputService")\n\nUserInputService.JumpRequest:Connect(function()\n    local player = game.Players.LocalPlayer\n    if player and player.Character then\n        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")\n        if humanoid then\n            humanoid:ChangeState("Jumping")\n        end\n    end\nend)`
+      name: 'Debounced Event Demo',
+      desc: 'Shows how to debounce repeated input safely',
+      code: `-- [[ DEBOUNCED EVENT DEMO ]]\nlocal busy = false\n\nlocal function handleAction()\n    if busy then return end\n    busy = true\n    print("Action accepted once, then debounced briefly.")\n    task.wait(0.5)\n    busy = false\nend\n\nhandleAction()\nhandleAction()`
     },
     {
-      name: 'Custom ESP',
-      desc: 'Draws vector tracer lines',
-      code: `-- [[ SYSTEM GRAPHICS TRACERS ]]\nfunction createTracer(player)\n    if player == game.Players.LocalPlayer then return end\n    -- Render active bounding box lines\n    print("Attaching visual box to " .. player.Name)\nend`
+      name: 'Table Filter Demo',
+      desc: 'Filters a list of tagged values',
+      code: `-- [[ TABLE FILTER DEMO ]]\nlocal items = {\n    { name = "Campfire", tag = "landmark" },\n    { name = "Pine Tree", tag = "resource" },\n    { name = "Cabin", tag = "landmark" }\n}\n\nfor _, item in ipairs(items) do\n    if item.tag == "landmark" then\n        print("Landmark:", item.name)\n    end\nend`
     }
   ];
 
@@ -202,7 +202,7 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
       if (errorsList.length === 0) {
         setLintResult({
           status: 'success',
-          message: 'Valid Luau Syntax! Code compiled successfully into bytecode blocks.',
+          message: 'Valid Luau-style syntax check passed for this educational preview.',
           errors: []
         });
         triggerToast("Linter checks passed successfully!");
@@ -309,15 +309,15 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
   // Generate Loadstring
   const handleCopyLoadstring = () => {
     const rawUrl = `https://studiohub-loaders.pages.dev/api/snippet/${selectedSnippet?.id || 'temp'}`;
-    // Optimized for Delta and all major mobile & PC executors by omitting the incompatible second argument
-    const loadstringText = `loadstring(game:HttpGet("${rawUrl}"))()`;
-    navigator.clipboard.writeText(loadstringText);
+    // Educational source reference for review; avoid executing untrusted remote code
+    const sourceReference = `-- Educational source reference only\n-- Review this URL before using any code:\n-- ${rawUrl}`;
+    navigator.clipboard.writeText(sourceReference);
     setCopiedLoadstring(true);
     setTimeout(() => setCopiedLoadstring(false), 2000);
-    triggerToast("Injected loadstring template copied!");
+    triggerToast("Educational source reference copied!");
   };
 
-  const startSandboxDeltaSimulation = () => {
+  const startSandboxLearningSimulation = () => {
     setIsExecuting(true);
     setExecutionStep(0);
     setExecutionLogs([]);
@@ -327,10 +327,10 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
     setDetectedGameId(isForestScript ? 'nights_forest' : 'generic');
 
     const baseLogs = [
-      '🔧 [Delta Injector] Attaching Delta Level 7 Executor API...',
-      '🔍 [Delta Injector] Locating active Roblox client processes...',
-      '📌 [Delta Injector] Hooked RobloxPlayerBeta.exe successfully (PID: 28941) at 0x7FFA830C0000',
-      '🛡️ [Delta Bypass] Disabling server-side integrity telemetry registers...',
+      '🔧 [Sandbox] Initializing local learning preview...',
+      '🔍 [Sandbox] Checking draft text...',
+      '📌 [Sandbox] Connected draft to preview state.',
+      '🛡️ [Safety] Confirmed no bypass hooks or telemetry capture are included.',
       '🌐 [GitHub Linker] Verifying active master connection with raw.githubusercontent.com...',
       '✅ [GitHub Linker] Connection verified! Git HEAD secure and connected (Repo: ZeroHub-Roblox/scripts)',
     ];
@@ -341,16 +341,16 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
     const urlMatch = code.match(/https?:\/\/[^\s"'()]+/);
     if (urlMatch) {
       const detectedUrl = urlMatch[0];
-      logs.push(`📡 [CDN Fetch] Handshaking cloud secure tunnel for loadstring raw source...`);
-      logs.push(`📦 [GitHub Fetch] Downloading raw source: "${detectedUrl.substring(0, 48)}..."`);
-      logs.push(`✅ [GitHub Fetch] Downloaded 100% bytecode chunk successfully. (Size: 12.4 KB)`);
+      logs.push(`📡 [Source Preview] Preparing educational reference metadata...`);
+      logs.push(`📦 [Source Preview] Referencing source URL: "${detectedUrl.substring(0, 48)}..."`);
+      logs.push(`✅ [Source Preview] Metadata prepared without executing remote code.`);
     } else {
       logs.push(`📝 [Parser] Loading custom pasted Luau source code buffers...`);
-      logs.push(`⚡ [VM Compiler] Parsing AST tokens and compiling code segments...`);
+      logs.push(`⚡ [Formatter] Parsing text for local preview display...`);
     }
 
-    logs.push('🚀 [Delta Loader] SECURE LOADSTRING EXECUTED IN CLIENT ENVIRONMENT!');
-    logs.push('✨ [ZeroHub HUD] Welcome, Void User! Spawning Premium Bypass HUD GUI...');
+    logs.push('🚀 [Sandbox] Local preview simulation completed.');
+    logs.push('✨ [ZeroHub] Educational sandbox preview is ready.');
 
     let currentLog = 0;
     const logTimer = setInterval(() => {
@@ -563,18 +563,18 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
               <h2 className={`text-sm font-bold tracking-tight font-sans ${isDark ? 'text-white' : 'text-slate-800'}`}>
                 {selectedSnippet ? 'Edit Custom Snippet' : 'Draft New Code Snippet'}
               </h2>
-              <p className="text-[10px] text-slate-400">Compile and store configurations inside our simulated Luau register engine.</p>
+              <p className="text-[10px] text-slate-400">Check, preview, and store educational Luau snippets.</p>
             </div>
             
             <div className="flex items-center gap-2">
-              {/* Run in Delta simulation button */}
+              {/* Run in learning simulation button */}
               <button
-                onClick={startSandboxDeltaSimulation}
+                onClick={startSandboxLearningSimulation}
                 className="p-1.5 px-3 rounded-xl text-[10px] font-mono font-extrabold bg-amber-500 hover:bg-amber-400 text-black flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 shadow-md shadow-amber-500/10"
-                title="Execute draft code inside virtual Delta Executor Level 7"
+                title="Preview draft in local educational simulator"
               >
                 <Play className="w-3.5 h-3.5 fill-black text-black" />
-                <span>RUN IN DELTA</span>
+                <span>RUN PREVIEW</span>
               </button>
 
               {/* Loadstring button only if selected */}
@@ -732,7 +732,7 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
 
       </div>
 
-      {/* DELTA EXECUTOR SIMULATOR OVERLAY MODAL */}
+      {/* LEARNING SANDBOX SIMULATOR OVERLAY MODAL */}
       <AnimatePresence>
         {isExecuting && (
           <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
@@ -746,8 +746,8 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
               <div className="bg-zinc-900 border-b border-white/5 px-6 py-4 flex items-center justify-between text-xs font-mono font-bold text-zinc-400">
                 <div className="flex items-center gap-2.5">
                   <Cpu className="w-4 h-4 text-amber-400 animate-pulse" />
-                  <span>DELTA EXECUTOR v4.5 [PREMIUM]</span>
-                  <span className="text-[9px] px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full font-bold uppercase tracking-widest animate-pulse">ACTIVE LEVEL 7</span>
+                  <span>ZEROHUB SANDBOX v4.5</span>
+                  <span className="text-[9px] px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full font-bold uppercase tracking-widest animate-pulse">PREVIEW READY</span>
                 </div>
                 <button
                   onClick={() => setIsExecuting(false)}
@@ -854,7 +854,7 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
                         {/* Speed Alterer */}
                         <div className="space-y-2 bg-white/2 p-3 rounded-xl border border-white/5">
                           <div className="flex items-center justify-between text-[10px]">
-                            <span className="text-zinc-400 font-bold">👟 WalkSpeed Alterer</span>
+                            <span className="text-zinc-400 font-bold">👟 Movement Preview Value</span>
                             <span className="text-cyan-400 font-mono font-bold">{simulatedWalkSpeed} / 250</span>
                           </div>
                           <input
@@ -877,7 +877,7 @@ export function ScriptSandbox({ sessionUser, theme, triggerToast, onShowAuth, pr
                                 : 'bg-black/30 border-white/5 text-zinc-500 hover:text-zinc-300'
                             }`}
                           >
-                            <span className="flex items-center gap-1.5">🛸 Infinite Jump Fly</span>
+                            <span className="flex items-center gap-1.5">🛸 Debounced Event Demo Fly</span>
                             <span>{simulatedFly ? 'ON' : 'OFF'}</span>
                           </button>
 

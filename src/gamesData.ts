@@ -35,23 +35,23 @@ export const INITIAL_GAMES: RobloxGame[] = [
     id: 'nights_forest',
     name: '99 Nights in the Forest [Patched]',
     category: 'survival',
-    rawUrl: 'https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source',
+    rawUrl: 'https://example.com/zerohub/learning-sandbox.lua',
     emojiText: '🌳',
-    description: 'Perfect survival assistance. Auto warm fireplaces, animal warning ESP, item magnetic teleports and fully integrated anti-freeze bypass.',
-    status: 'Undetected',
+    description: 'Educational survival UI preview with local map markers, status labels, and safe configuration examples.',
+    status: 'Updated',
     releaseDate: '2026-07-03',
-    features: ['Walk speed changer', 'Automatic Chest Magnet', 'Campfire Auto Wood Feeder', 'Lost Children Auto Warp'],
+    features: ['Movement Value Preview', 'Chest Label Preview', 'Campfire Workflow Demo', 'NPC Marker Demo'],
     settings: {
       walkSpeed: 75,
       jumpPower: 120,
       extraToggles: [
-        { label: 'Automatic Loot Magnet', key: 'autoCollectTreasure', val: true },
-        { label: 'Chest Visual ESP highlights', key: 'espChests', val: true },
-        { label: 'Dense Wood Auto Feeder', key: 'chopAllTrees', val: false },
-        { label: 'NPC Teleport Lost Children', key: 'teleportLostChildren', val: false }
+        { label: 'Loot Label Preview', key: 'autoCollectTreasure', val: true },
+        { label: 'Chest Visual Labels', key: 'espChests', val: true },
+        { label: 'Wood Collection Notes', key: 'chopAllTrees', val: false },
+        { label: 'NPC Marker Preview', key: 'teleportLostChildren', val: false }
       ],
       extraSliders: [
-        { label: 'Fly Custom Speed', key: 'flySpeed', min: 20, max: 200, val: 45, unit: 'studs/s' }
+        { label: 'Fly Speed Preview', key: 'flySpeed', min: 20, max: 200, val: 45, unit: 'studs/s' }
       ]
     }
   }
@@ -64,8 +64,8 @@ export const INITIAL_CHANGELOGS: ChangeLogEntry[] = [
     version: 'v4.2.0',
     gameName: '99 Nights in the Forest',
     type: 'added',
-    title: 'Active Raw Loadstring Script & Release Update',
-    description: 'Transferred 99 Nights in the Forest from coming-soon status to fully operational. Replaced long, bulky scripts with lightweight, easy-to-copy loadstring executions.'
+    title: 'Educational Source Preview Release Update',
+    description: 'Transferred 99 Nights in the Forest from coming-soon status to fully operational. Replaced long, bulky scripts with lightweight, easy-to-copy source preview examples.'
   },
   {
     id: 'cl4',

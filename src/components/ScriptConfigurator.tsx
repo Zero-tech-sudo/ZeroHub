@@ -62,19 +62,19 @@ export const ScriptConfigurator: React.FC<ScriptConfiguratorProps> = ({
   };
 
   const presets = [
-    { name: '🛡️ Anti-Cheat Bypass', url: 'https://raw.githubusercontent.com/ZeroHub-Roblox/scripts/main/modules/bypass.lua' },
+    { name: '🧰 UI Safety Checklist', url: 'https://raw.githubusercontent.com/ZeroHub-Roblox/scripts/main/modules/ui_safety.lua' },
     { name: '⚡ FPS Booster & Optimizer', url: 'https://raw.githubusercontent.com/ZeroHub-Roblox/scripts/main/modules/fps_boost.lua' },
-    { name: '👁️ Universal ESP Assist', url: 'https://raw.githubusercontent.com/ZeroHub-Roblox/scripts/main/modules/esp_assist.lua' },
-    { name: '🛰️ Universal Chat Logger', url: 'https://raw.githubusercontent.com/ZeroHub-Roblox/scripts/main/modules/chat_logger.lua' }
+    { name: '👁️ Visual Label Demo', url: 'https://raw.githubusercontent.com/ZeroHub-Roblox/scripts/main/modules/esp_assist.lua' },
+    { name: '📝 Event Log Demo', url: 'https://raw.githubusercontent.com/ZeroHub-Roblox/scripts/main/modules/event_log_demo.lua' }
   ];
 
   const togglePreset = (url: string) => {
     if (chainedUrls.includes(url)) {
       updateChainedUrls(chainedUrls.filter(u => u !== url));
-      if (triggerToast) triggerToast('Removed utility module from script chain!');
+      if (triggerToast) triggerToast('Removed utility module from preview bundle!');
     } else {
       updateChainedUrls([...chainedUrls, url]);
-      if (triggerToast) triggerToast('Added utility module to script chain!');
+      if (triggerToast) triggerToast('Added utility module to preview bundle!');
     }
   };
 
@@ -83,10 +83,10 @@ export const ScriptConfigurator: React.FC<ScriptConfiguratorProps> = ({
   const toggleGameScript = (url: string) => {
     if (chainedUrls.includes(url)) {
       updateChainedUrls(chainedUrls.filter(u => u !== url));
-      if (triggerToast) triggerToast('Removed script from script chain!');
+      if (triggerToast) triggerToast('Removed resource from preview bundle!');
     } else {
       updateChainedUrls([...chainedUrls, url]);
-      if (triggerToast) triggerToast('Chained game script in loadstring execution block!');
+      if (triggerToast) triggerToast('Added educational resource to the preview bundle!');
     }
   };
 
@@ -178,7 +178,7 @@ export const ScriptConfigurator: React.FC<ScriptConfiguratorProps> = ({
         <Sliders className="w-5 h-5 text-cyan-400" />
         <div>
           <h2 className="text-base font-bold text-white tracking-tight font-sans neon-text">Customize {game.emojiText} {game.name}</h2>
-          <p className="text-xs text-white/40">Calibrate the live in-game active cheat parameters</p>
+          <p className="text-xs text-white/40">Adjust local-only learning preview settings</p>
         </div>
       </div>
 
@@ -212,7 +212,7 @@ export const ScriptConfigurator: React.FC<ScriptConfiguratorProps> = ({
               className="w-full accent-cyan-400 h-1.5 bg-black/40 rounded-lg appearance-none cursor-pointer"
             />
           </div>
-          <p className="text-[9px] text-white/30">Roblox standard default is 16. Higher allows instant bypass traversal.</p>
+          <p className="text-[9px] text-white/30">Roblox standard default is 16. Shown as a local preview value only; do not use to bypass game rules.</p>
         </div>
 
         {/* Jump Power */}
@@ -318,15 +318,15 @@ export const ScriptConfigurator: React.FC<ScriptConfiguratorProps> = ({
         })}
       </div>
 
-      {/* Loadstring Chaining & Multi-Module Combiner */}
+      {/* Source References & Learning Modules */}
       <div className="space-y-4 border-t border-white/5 pt-4">
         <label className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest flex items-center gap-1.5 font-mono">
-          <Sparkles className="w-3.5 h-3.5 animate-pulse" /> Loadstring Chaining & Multi-Module Combiner
+          <Sparkles className="w-3.5 h-3.5 animate-pulse" /> Source References & Learning Modules
         </label>
         
         <div className="black-glass-morphism p-4 rounded-2xl border border-white/5 space-y-3.5">
           <p className="text-[10.5px] text-white/50 leading-relaxed font-sans">
-            Combine multiple utility modules or other scripts in the database into one unified loadstring execution block.
+            Combine vetted educational modules or examples into one preview bundle.
           </p>
 
           {/* Preset Modules */}
@@ -388,7 +388,7 @@ export const ScriptConfigurator: React.FC<ScriptConfiguratorProps> = ({
 
           {/* Custom Text Area for direct URL input */}
           <div className="space-y-1.5">
-            <span className="block text-[9px] uppercase font-mono font-bold text-white/35">Custom Delimited Script URLs / JSON Array</span>
+            <span className="block text-[9px] uppercase font-mono font-bold text-white/35">Custom Delimited Source URLs / JSON Array</span>
             <textarea
               rows={3}
               value={chainedScriptsVal}
@@ -398,11 +398,11 @@ export const ScriptConfigurator: React.FC<ScriptConfiguratorProps> = ({
                   chainedScripts: e.target.value
                 });
               }}
-              placeholder="e.g. https://my-script.com/bypass.lua | https://my-script.com/fps.lua (Separated by '|', commas, or newlines)"
+              placeholder="e.g. https://example.com/ui-demo.lua | https://example.com/fps-notes.lua (Separated by '|', commas, or newlines)"
               className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-cyan-500/30 font-mono leading-relaxed"
             />
             <p className="text-[9px] text-white/30 font-sans leading-normal">
-              You can manually paste multiple raw loader URLs. Chaining automatically compiles them into an optimized single execution loadstring loop.
+              You can paste multiple reference URLs. The app treats them as educational resources for review, not as trusted executable code.
             </p>
           </div>
         </div>
@@ -416,7 +416,7 @@ export const ScriptConfigurator: React.FC<ScriptConfiguratorProps> = ({
               <Download className="w-3.5 h-3.5 text-cyan-400" />
               <span>Export Configurations</span>
             </h4>
-            <p className="text-[10px] text-white/40 leading-relaxed">Backup your customized speed, physical parameters, and active cheat selections as a JSON file.</p>
+            <p className="text-[10px] text-white/40 leading-relaxed">Backup your customized speed, physical parameters, and local preview selections as a JSON file.</p>
           </div>
         </div>
 
@@ -440,7 +440,7 @@ export const ScriptConfigurator: React.FC<ScriptConfiguratorProps> = ({
       {/* Premium Keyless status */}
       <div className="p-3 bg-cyan-950/15 rounded-xl border border-cyan-500/10 flex items-center gap-2.5 text-[10px] text-cyan-300">
         <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
-        <span>This compiled script utilizes bypass tunnels to operate without annoying key links.</span>
+        <span>This generated example is local-only and avoids key systems, bypass claims, and telemetry collection.</span>
       </div>
     </div>
   );
